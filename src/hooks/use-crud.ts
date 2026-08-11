@@ -67,7 +67,7 @@ export function useCrud<T extends { id: string }>(
 
   const update = useCallback(
     async (id: string, values: Partial<T>) => {
-      const { error } = await supabase.from(table).update(values).eq("id", id);
+      const { error } = await supabase.from(table).update(values as any).eq("id", id);
       if (error) return { error: error.message };
       await refresh();
       return { error: null };

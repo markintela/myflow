@@ -78,8 +78,8 @@ export function CrudList<T extends { id: string }>({
             onCancel={() => setShowForm(false)}
             onSubmit={async (values) => {
               const result = editingId
-                ? await onUpdate(editingId, values)
-                : await onCreate(values);
+                ? await onUpdate(editingId, values as unknown as Partial<T>)
+                : await onCreate(values as unknown as Partial<T>);
               if (!result.error) {
                 setShowForm(false);
                 setEditingId(null);
