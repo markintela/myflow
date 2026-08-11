@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WhatsappInviteButton } from "@/components/whatsapp-invite-button";
+import { MyflowLogo } from "@/components/myflow-logo";
 
 const AREAS = [
   { icon: ListChecks, label: "Tarefas", desc: "O que precisa ser resolvido hoje", color: "text-brand-blue", bg: "bg-brand-blueSoft" },
@@ -26,12 +27,7 @@ export default function LandingPage() {
     <main className="min-h-screen bg-white">
       {/* Header */}
       <header className="max-w-5xl mx-auto flex items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-blue to-brand-green flex items-center justify-center">
-            <Waves size={16} className="text-white" />
-          </div>
-          <span className="font-bold text-lg text-slate-900">myflow</span>
-        </div>
+        <MyflowLogo size={60} />
         <Link href="/login">
           <Button variant="outline" size="sm">Entrar</Button>
         </Link>

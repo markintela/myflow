@@ -15,6 +15,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { MyflowLogo } from "@/components/myflow-logo";
 
 const NAV = [
   { href: "/dashboard", label: "Hoje", icon: Sun },
@@ -41,8 +42,8 @@ export function Sidebar() {
 
   return (
     <aside className="w-56 shrink-0 bg-gradient-to-b from-brand-blue to-brand-green text-white p-6 flex flex-col gap-7 min-h-screen">
-      <Link href="/dashboard" className="text-2xl font-bold tracking-tight">
-        myflow
+      <Link href="/dashboard">
+        <MyflowLogo dark size={26} />
       </Link>
       <nav className="flex flex-col gap-1">
         {NAV.map((n) => {
