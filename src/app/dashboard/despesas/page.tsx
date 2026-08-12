@@ -5,6 +5,7 @@ import { Wallet } from "lucide-react";
 import { useCrud } from "@/hooks/use-crud";
 import { CrudList } from "@/components/crud/crud-list";
 import { SplitButton } from "@/components/crud/split-button";
+import { recurrenceFields } from "@/components/crud/entity-form";
 import { createClient } from "@/lib/supabase/client";
 import { EXPENSE_CATEGORIES, type Expense, type ExpenseSplit } from "@/lib/types";
 
@@ -29,6 +30,7 @@ const FIELDS = [
     ],
   },
   { name: "expense_date", label: "Data", type: "date" as const, required: true },
+  ...recurrenceFields(),
 ];
 
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(

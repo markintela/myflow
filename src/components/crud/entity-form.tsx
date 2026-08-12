@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { RECURRENCE_OPTIONS, type RecurrenceType } from "@/lib/types";
 
 export type FieldConfig = {
   name: string;
@@ -10,7 +11,23 @@ export type FieldConfig = {
   type: "text" | "number" | "date" | "textarea" | "select";
   options?: { value: string; label: string }[];
   required?: boolean;
+  defaultValue?: string;
 };
+
+// Campos de repetição (semanal/mensal, com término opcional) reaproveitados
+// por todas as áreas com data — o calendário projeta as ocorrências.
+export function recurrenceFields(defaultValue: RecurrenceType = "none"): FieldConfig[] {
+  return [
+    {
+      name: "recurrence_type",
+      label: "Repetição",
+      type: "select",
+      options: RECURRENCE_OPTIONS.map((r) => ({ value: r.value, label: r.label })),
+      defaultValue,
+    },
+    { name: "recurrence_end_date", label: "Repetir até (opcional)", type: "date" },
+  ];
+}
 
 interface EntityFormProps {
   fields: FieldConfig[];
@@ -29,7 +46,12 @@ export function EntityForm({
   onSubmit,
   onCancel,
 }: EntityFormProps) {
-  const [values, setValues] = useState<Record<string, any>>(initialValues);
+  const [values, setValues] = useState<Record<string, any>>(() => {
+    const defaults = Object.fromEntries(
+      fields.filter((f) => f.defaultValue !== undefined).map((f) => [f.name, f.defaultValue])
+    );
+    return { ...defaults, ...initialValues };
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (name: string, value: any) => {

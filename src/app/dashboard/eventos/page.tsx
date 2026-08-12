@@ -3,6 +3,7 @@
 import { CalendarPlus } from "lucide-react";
 import { useCrud } from "@/hooks/use-crud";
 import { CrudList } from "@/components/crud/crud-list";
+import { recurrenceFields } from "@/components/crud/entity-form";
 import type { Event } from "@/lib/types";
 
 const FIELDS = [
@@ -23,6 +24,7 @@ const FIELDS = [
   { name: "event_date", label: "Data", type: "date" as const, required: true },
   { name: "location", label: "Local", type: "text" as const },
   { name: "notes", label: "Notas", type: "textarea" as const },
+  ...recurrenceFields(),
 ];
 
 const CATEGORY_LABEL: Record<string, string> = {

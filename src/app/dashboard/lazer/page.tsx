@@ -3,6 +3,7 @@
 import { Waves } from "lucide-react";
 import { useCrud } from "@/hooks/use-crud";
 import { CrudList } from "@/components/crud/crud-list";
+import { recurrenceFields } from "@/components/crud/entity-form";
 import type { LeisureEvent } from "@/lib/types";
 
 const FIELDS = [
@@ -10,6 +11,7 @@ const FIELDS = [
   { name: "event_date", label: "Data", type: "date" as const, required: true },
   { name: "location", label: "Local", type: "text" as const },
   { name: "notes", label: "Notas", type: "textarea" as const },
+  ...recurrenceFields(),
 ];
 
 export default function LazerPage() {

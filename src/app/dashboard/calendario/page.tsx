@@ -4,15 +4,22 @@ import { useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCrud } from "@/hooks/use-crud";
-import type { Task, Study, Expense, Birthday, LeisureEvent, Event } from "@/lib/types";
+import type { Task, Study, HealthLog, Expense, IncomeSource, Birthday, LeisureEvent, Event, RecurrenceType } from "@/lib/types";
 
-type CalendarEvent = { date: string; label: string; area: string };
+type CalendarEvent = {
+  date: string;
+  label: string;
+  area: string;
+  recurrenceType: RecurrenceType;
+  recurrenceEnd: string | null;
+};
 type ViewMode = "dia" | "semana" | "mes" | "trimestre" | "semestre" | "ano";
 
 const AREA_COLOR: Record<string, string> = {
   tarefa: "#2563EB",
   educacao: "#2563EB",
   saude: "#16A34A",
+  renda: "#D97706",
   despesa: "#0891B2",
   lazer: "#10B981",
   evento: "#7C3AED",
@@ -62,13 +69,37 @@ function dateKey(d: Date) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
+// Verifica se um evento com repetição (semanal/mensal/anual) ocorre no dia
+// `d`, a partir da data original até a data de término (se houver).
+function matchesRecurrence(e: CalendarEvent, d: Date) {
+  const origin = parseDateOnly(e.date);
+  if (d < origin) return false;
+  if (e.recurrenceEnd && d > parseDateOnly(e.recurrenceEnd)) return false;
+
+  if (e.recurrenceType === "weekly") {
+    const diffDays = Math.round((d.getTime() - origin.getTime()) / 86400000);
+    return diffDays % 7 === 0;
+  }
+  if (e.recurrenceType === "monthly") {
+    const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    return d.getDate() === Math.min(origin.getDate(), daysInTargetMonth);
+  }
+  if (e.recurrenceType === "yearly") {
+    const daysInTargetMonth = new Date(d.getFullYear(), origin.getMonth() + 1, 0).getDate();
+    return d.getMonth() === origin.getMonth() && d.getDate() === Math.min(origin.getDate(), daysInTargetMonth);
+  }
+  return false;
+}
+
 // Página de calendário: agrega eventos de todas as tabelas (tarefas com
 // prazo, educação, despesas, lazer, eventos e aniversários) com navegação
 // entre períodos e 6 visões (dia/semana/mês/trimestre/semestre/ano).
 export default function CalendarioPage() {
   const tasks = useCrud<Task>("tasks");
   const studies = useCrud<Study>("studies", "study_date");
+  const health = useCrud<HealthLog>("health_logs", "log_date");
   const expenses = useCrud<Expense>("expenses", "expense_date");
+  const income = useCrud<IncomeSource>("income_sources", "income_date");
   const birthdays = useCrud<Birthday>("birthdays", "birth_date");
   const leisure = useCrud<LeisureEvent>("leisure_events", "event_date");
   const events = useCrud<Event>("events", "event_date");
@@ -79,52 +110,52 @@ export default function CalendarioPage() {
 
   const calendarEvents: CalendarEvent[] = useMemo(() => {
     const list: CalendarEvent[] = [];
-    tasks.items.forEach((t) => t.due_date && list.push({ date: t.due_date, label: t.title, area: "tarefa" }));
-    studies.items.forEach((s) => list.push({ date: s.study_date, label: s.subject, area: "educacao" }));
-    expenses.items.forEach((e) => list.push({ date: e.expense_date, label: e.description, area: "despesa" }));
-    leisure.items.forEach((l) => list.push({ date: l.event_date, label: l.title, area: "lazer" }));
-    events.items.forEach((e) => list.push({ date: e.event_date, label: e.title, area: "evento" }));
-    birthdays.items.forEach((b) => list.push({ date: b.birth_date, label: b.name, area: "aniversario" }));
+    const push = (
+      date: string | null,
+      label: string,
+      area: string,
+      recurrenceType: RecurrenceType = "none",
+      recurrenceEnd: string | null = null
+    ) => {
+      if (!date) return;
+      list.push({ date, label, area, recurrenceType, recurrenceEnd });
+    };
+
+    tasks.items.forEach((t) => push(t.due_date, t.title, "tarefa", t.recurrence_type, t.recurrence_end_date));
+    studies.items.forEach((s) => push(s.study_date, s.subject, "educacao", s.recurrence_type, s.recurrence_end_date));
+    health.items.forEach((h) => push(h.log_date, h.value, "saude", h.recurrence_type, h.recurrence_end_date));
+    expenses.items.forEach((e) =>
+      push(e.expense_date, e.description, "despesa", e.recurrence_type, e.recurrence_end_date)
+    );
+    income.items.forEach((i) => push(i.income_date, i.name, "renda", i.recurrence_type, i.recurrence_end_date));
+    leisure.items.forEach((l) => push(l.event_date, l.title, "lazer", l.recurrence_type, l.recurrence_end_date));
+    events.items.forEach((e) => push(e.event_date, e.title, "evento", e.recurrence_type, e.recurrence_end_date));
+    birthdays.items.forEach((b) =>
+      push(b.birth_date, b.name, "aniversario", b.recurrence_type, b.recurrence_end_date)
+    );
     return list;
-  }, [tasks.items, studies.items, expenses.items, leisure.items, events.items, birthdays.items]);
+  }, [tasks.items, studies.items, health.items, expenses.items, income.items, leisure.items, events.items, birthdays.items]);
 
-  const eventsByDate = useMemo(() => {
-    const map: Record<string, CalendarEvent[]> = {};
+  // Eventos sem repetição ficam num índice por data (O(1)); eventos com
+  // repetição (semanal/mensal/anual) são checados dia a dia contra a data
+  // original e a data de término, projetando pra frente indefinidamente.
+  const { eventsByDate, recurringEvents } = useMemo(() => {
+    const byDate: Record<string, CalendarEvent[]> = {};
+    const recurring: CalendarEvent[] = [];
     calendarEvents.forEach((e) => {
-      const key = dateKey(parseDateOnly(e.date));
-      (map[key] ??= []).push(e);
+      if (e.recurrenceType && e.recurrenceType !== "none") {
+        recurring.push(e);
+      } else {
+        const key = dateKey(parseDateOnly(e.date));
+        (byDate[key] ??= []).push(e);
+      }
     });
-    return map;
+    return { eventsByDate: byDate, recurringEvents: recurring };
   }, [calendarEvents]);
-
-  // Despesas fixas repetem no mesmo dia em todo mês seguinte ao original
-  // (se o mês não tiver esse dia, cai no último dia do mês).
-  const fixedExpenses = useMemo(
-    () => expenses.items.filter((e) => e.expense_type === "fixa"),
-    [expenses.items]
-  );
 
   const eventsOn = (d: Date) => {
     const exact = eventsByDate[dateKey(d)] ?? [];
-    const projected: CalendarEvent[] = [];
-
-    for (const e of fixedExpenses) {
-      const origin = parseDateOnly(e.expense_date);
-      const isOriginMonth = d.getFullYear() === origin.getFullYear() && d.getMonth() === origin.getMonth();
-      if (isOriginMonth) continue; // já está em `exact`
-
-      const isAfterOrigin =
-        d.getFullYear() > origin.getFullYear() ||
-        (d.getFullYear() === origin.getFullYear() && d.getMonth() > origin.getMonth());
-      if (!isAfterOrigin) continue; // só projeta pra frente
-
-      const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-      const projectedDay = Math.min(origin.getDate(), daysInTargetMonth);
-      if (d.getDate() === projectedDay) {
-        projected.push({ date: e.expense_date, label: e.description, area: "despesa" });
-      }
-    }
-
+    const projected = recurringEvents.filter((e) => matchesRecurrence(e, d));
     return [...exact, ...projected];
   };
 
@@ -173,7 +204,7 @@ export default function CalendarioPage() {
     <div>
       <h1 className="text-2xl font-semibold text-slate-900 mb-1">Calendário</h1>
       <p className="text-slate-500 text-sm mb-6">
-        Tarefas, educação, despesas, lazer, eventos e aniversários, todos no mesmo lugar.
+        Tarefas, educação, saúde, despesas, renda, lazer, eventos e aniversários, todos no mesmo lugar.
       </p>
 
       <Card>

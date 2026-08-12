@@ -3,6 +3,7 @@
 import { Landmark } from "lucide-react";
 import { useCrud } from "@/hooks/use-crud";
 import { CrudList } from "@/components/crud/crud-list";
+import { recurrenceFields } from "@/components/crud/entity-form";
 import { isInCurrentMonth } from "@/lib/utils";
 import type { IncomeSource } from "@/lib/types";
 
@@ -21,6 +22,7 @@ const FIELDS = [
   { name: "amount", label: "Valor (€)", type: "number" as const, required: true },
   { name: "income_date", label: "Data", type: "date" as const, required: true },
   { name: "notes", label: "Notas", type: "textarea" as const },
+  ...recurrenceFields(),
 ];
 
 export default function RendaPage() {

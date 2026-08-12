@@ -3,6 +3,7 @@
 import { HeartPulse } from "lucide-react";
 import { useCrud } from "@/hooks/use-crud";
 import { CrudList } from "@/components/crud/crud-list";
+import { recurrenceFields } from "@/components/crud/entity-form";
 import type { HealthLog } from "@/lib/types";
 
 const FIELDS = [
@@ -20,6 +21,7 @@ const FIELDS = [
   },
   { name: "value", label: "Valor (ex: 6 copos, 7h30, 30 min)", type: "text" as const, required: true },
   { name: "log_date", label: "Data", type: "date" as const, required: true },
+  ...recurrenceFields(),
 ];
 
 const METRIC_LABEL: Record<string, string> = {

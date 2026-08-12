@@ -3,6 +3,7 @@
 import { BookOpen } from "lucide-react";
 import { useCrud } from "@/hooks/use-crud";
 import { CrudList } from "@/components/crud/crud-list";
+import { recurrenceFields } from "@/components/crud/entity-form";
 import type { Study } from "@/lib/types";
 
 const FIELDS = [
@@ -10,6 +11,7 @@ const FIELDS = [
   { name: "hours", label: "Horas estudadas", type: "number" as const, required: true },
   { name: "study_date", label: "Data", type: "date" as const, required: true },
   { name: "notes", label: "Notas", type: "textarea" as const },
+  ...recurrenceFields(),
 ];
 
 export default function EducacaoPage() {

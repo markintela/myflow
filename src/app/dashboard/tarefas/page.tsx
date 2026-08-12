@@ -3,12 +3,14 @@
 import { ListChecks } from "lucide-react";
 import { useCrud } from "@/hooks/use-crud";
 import { CrudList } from "@/components/crud/crud-list";
+import { recurrenceFields } from "@/components/crud/entity-form";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Task } from "@/lib/types";
 
 const FIELDS = [
   { name: "title", label: "Título", type: "text" as const, required: true },
   { name: "due_date", label: "Prazo", type: "date" as const },
+  ...recurrenceFields(),
 ];
 
 export default function TarefasPage() {

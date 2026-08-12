@@ -1,9 +1,20 @@
+export type RecurrenceType = "none" | "weekly" | "monthly" | "yearly";
+
+export const RECURRENCE_OPTIONS = [
+  { value: "none", label: "Não repete" },
+  { value: "weekly", label: "Semanal" },
+  { value: "monthly", label: "Mensal" },
+  { value: "yearly", label: "Anual" },
+] as const;
+
 export type Task = {
   id: string;
   user_id: string;
   title: string;
   done: boolean;
   due_date: string | null;
+  recurrence_type: RecurrenceType;
+  recurrence_end_date: string | null;
   created_at: string;
 };
 
@@ -14,6 +25,8 @@ export type Study = {
   hours: number;
   study_date: string;
   notes: string | null;
+  recurrence_type: RecurrenceType;
+  recurrence_end_date: string | null;
   created_at: string;
 };
 
@@ -23,6 +36,8 @@ export type HealthLog = {
   metric: "agua" | "sono" | "exercicio" | "outro";
   value: string;
   log_date: string;
+  recurrence_type: RecurrenceType;
+  recurrence_end_date: string | null;
   created_at: string;
 };
 
@@ -36,6 +51,8 @@ export type Expense = {
   category: string;
   expense_type: ExpenseType;
   expense_date: string;
+  recurrence_type: RecurrenceType;
+  recurrence_end_date: string | null;
   created_at: string;
 };
 
@@ -73,6 +90,8 @@ export type IncomeSource = {
   amount: number;
   income_date: string;
   notes: string | null;
+  recurrence_type: RecurrenceType;
+  recurrence_end_date: string | null;
   created_at: string;
 };
 
@@ -109,6 +128,8 @@ export type LeisureEvent = {
   event_date: string;
   location: string | null;
   notes: string | null;
+  recurrence_type: RecurrenceType;
+  recurrence_end_date: string | null;
   created_at: string;
 };
 
@@ -120,6 +141,8 @@ export type Event = {
   event_date: string;
   location: string | null;
   notes: string | null;
+  recurrence_type: RecurrenceType;
+  recurrence_end_date: string | null;
   created_at: string;
 };
 
@@ -129,6 +152,8 @@ export type Birthday = {
   name: string;
   birth_date: string;
   notes: string | null;
+  recurrence_type: RecurrenceType;
+  recurrence_end_date: string | null;
   created_at: string;
 };
 

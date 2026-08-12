@@ -3,12 +3,14 @@
 import { Gift } from "lucide-react";
 import { useCrud } from "@/hooks/use-crud";
 import { CrudList } from "@/components/crud/crud-list";
+import { recurrenceFields } from "@/components/crud/entity-form";
 import type { Birthday } from "@/lib/types";
 
 const FIELDS = [
   { name: "name", label: "Nome", type: "text" as const, required: true },
   { name: "birth_date", label: "Data de nascimento", type: "date" as const, required: true },
   { name: "notes", label: "Ideias de presente / notas", type: "textarea" as const },
+  ...recurrenceFields("yearly"),
 ];
 
 export default function AniversariosPage() {
