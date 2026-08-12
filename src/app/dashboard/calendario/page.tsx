@@ -97,7 +97,36 @@ export default function CalendarioPage() {
     return map;
   }, [calendarEvents]);
 
-  const eventsOn = (d: Date) => eventsByDate[dateKey(d)] ?? [];
+  // Despesas fixas repetem no mesmo dia em todo mês seguinte ao original
+  // (se o mês não tiver esse dia, cai no último dia do mês).
+  const fixedExpenses = useMemo(
+    () => expenses.items.filter((e) => e.expense_type === "fixa"),
+    [expenses.items]
+  );
+
+  const eventsOn = (d: Date) => {
+    const exact = eventsByDate[dateKey(d)] ?? [];
+    const projected: CalendarEvent[] = [];
+
+    for (const e of fixedExpenses) {
+      const origin = parseDateOnly(e.expense_date);
+      const isOriginMonth = d.getFullYear() === origin.getFullYear() && d.getMonth() === origin.getMonth();
+      if (isOriginMonth) continue; // já está em `exact`
+
+      const isAfterOrigin =
+        d.getFullYear() > origin.getFullYear() ||
+        (d.getFullYear() === origin.getFullYear() && d.getMonth() > origin.getMonth());
+      if (!isAfterOrigin) continue; // só projeta pra frente
+
+      const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      const projectedDay = Math.min(origin.getDate(), daysInTargetMonth);
+      if (d.getDate() === projectedDay) {
+        projected.push({ date: e.expense_date, label: e.description, area: "despesa" });
+      }
+    }
+
+    return [...exact, ...projected];
+  };
 
   const STEP: Record<ViewMode, (d: Date, dir: 1 | -1) => Date> = {
     dia: (d, dir) => addDays(d, dir * 1),
