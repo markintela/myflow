@@ -7,6 +7,7 @@ import { useCrud } from "@/hooks/use-crud";
 import type { Task, Study, Expense, Birthday, LeisureEvent, Event } from "@/lib/types";
 
 type CalendarEvent = { date: string; label: string; area: string };
+type ViewMode = "dia" | "semana" | "mes" | "trimestre" | "semestre" | "ano";
 
 const AREA_COLOR: Record<string, string> = {
   tarefa: "#2563EB",
@@ -18,8 +19,52 @@ const AREA_COLOR: Record<string, string> = {
   aniversario: "#1E40AF",
 };
 
+const VIEW_LABEL: Record<ViewMode, string> = {
+  dia: "Dia",
+  semana: "Semana",
+  mes: "Mês",
+  trimestre: "Trimestre",
+  semestre: "Semestre",
+  ano: "Ano",
+};
+
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const MONTH_ABBR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+// Datas do app são "YYYY-MM-DD" — parse manual evita o shift de timezone de
+// `new Date("YYYY-MM-DD")` (interpretado como UTC meia-noite pelo JS).
+function parseDateOnly(dateStr: string) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function addDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function addMonths(date: Date, months: number) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
+
+function startOfWeek(date: Date) {
+  return addDays(date, -date.getDay());
+}
+
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function dateKey(d: Date) {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
 // Página de calendário: agrega eventos de todas as tabelas (tarefas com
-// prazo, educação, despesas, lazer, eventos e aniversários) num único mês.
+// prazo, educação, despesas, lazer, eventos e aniversários) com navegação
+// entre períodos e 6 visões (dia/semana/mês/trimestre/semestre/ano).
 export default function CalendarioPage() {
   const tasks = useCrud<Task>("tasks");
   const studies = useCrud<Study>("studies", "study_date");
@@ -28,7 +73,9 @@ export default function CalendarioPage() {
   const leisure = useCrud<LeisureEvent>("leisure_events", "event_date");
   const events = useCrud<Event>("events", "event_date");
 
-  const [cursor] = useState(new Date());
+  const [cursor, setCursor] = useState(new Date());
+  const [view, setView] = useState<ViewMode>("mes");
+  const today = new Date();
 
   const calendarEvents: CalendarEvent[] = useMemo(() => {
     const list: CalendarEvent[] = [];
@@ -41,31 +88,57 @@ export default function CalendarioPage() {
     return list;
   }, [tasks.items, studies.items, expenses.items, leisure.items, events.items, birthdays.items]);
 
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, CalendarEvent[]> = {};
+    calendarEvents.forEach((e) => {
+      const key = dateKey(parseDateOnly(e.date));
+      (map[key] ??= []).push(e);
+    });
+    return map;
+  }, [calendarEvents]);
+
+  const eventsOn = (d: Date) => eventsByDate[dateKey(d)] ?? [];
+
+  const STEP: Record<ViewMode, (d: Date, dir: 1 | -1) => Date> = {
+    dia: (d, dir) => addDays(d, dir * 1),
+    semana: (d, dir) => addDays(d, dir * 7),
+    mes: (d, dir) => addMonths(d, dir * 1),
+    trimestre: (d, dir) => addMonths(d, dir * 3),
+    semestre: (d, dir) => addMonths(d, dir * 6),
+    ano: (d, dir) => addMonths(d, dir * 12),
+  };
+
+  const goTo = (dir: 1 | -1) => setCursor((c) => STEP[view](c, dir));
+  const goToday = () => setCursor(new Date());
+
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const eventsByDay: Record<number, CalendarEvent[]> = {};
-  calendarEvents.forEach((e) => {
-    const d = new Date(e.date);
-    if (d.getFullYear() === year && d.getMonth() === month) {
-      const day = d.getDate();
-      eventsByDay[day] = eventsByDay[day] || [];
-      eventsByDay[day].push(e);
+  const periodLabel = useMemo(() => {
+    if (view === "dia") {
+      return cursor.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     }
-  });
-
-  const cells: (number | null)[] = [
-    ...Array(firstDay).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-
-  const today = new Date();
-  const isToday = (d: number) =>
-    d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
-
-  const monthLabel = cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    if (view === "semana") {
+      const start = startOfWeek(cursor);
+      const end = addDays(start, 6);
+      const sameMonth = start.getMonth() === end.getMonth();
+      const startLabel = `${start.getDate()}${sameMonth ? "" : ` de ${MONTH_ABBR[start.getMonth()]}`}`;
+      const endLabel = `${end.getDate()} de ${MONTH_ABBR[end.getMonth()]} de ${end.getFullYear()}`;
+      return `${startLabel} – ${endLabel}`;
+    }
+    if (view === "mes") {
+      return cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    }
+    if (view === "trimestre") {
+      const q = Math.floor(month / 3);
+      return `${q + 1}º trimestre de ${year} (${MONTH_ABBR[q * 3]}–${MONTH_ABBR[q * 3 + 2]})`;
+    }
+    if (view === "semestre") {
+      const s = Math.floor(month / 6);
+      return `${s + 1}º semestre de ${year} (${MONTH_ABBR[s * 6]}–${MONTH_ABBR[s * 6 + 5]})`;
+    }
+    return `${year}`;
+  }, [cursor, view, month, year]);
 
   return (
     <div>
@@ -76,55 +149,270 @@ export default function CalendarioPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <CalendarDays size={18} className="text-brand-blue" />
-            <CardTitle className="capitalize">{monthLabel}</CardTitle>
+          <div className="flex items-center gap-2 min-w-0">
+            <CalendarDays size={18} className="text-brand-blue shrink-0" />
+            <CardTitle className="capitalize truncate">{periodLabel}</CardTitle>
           </div>
-          <div className="flex items-center gap-2 text-slate-400">
-            <ChevronLeft size={18} className="cursor-pointer hover:text-slate-600" />
-            <ChevronRight size={18} className="cursor-pointer hover:text-slate-600" />
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={goToday}
+              className="text-xs font-medium text-slate-500 hover:text-brand-blue px-2 py-1 rounded-md hover:bg-brand-blueSoft"
+            >
+              Hoje
+            </button>
+            <div className="flex items-center gap-1 text-slate-400">
+              <button onClick={() => goTo(-1)} className="hover:text-slate-600" aria-label="Anterior">
+                <ChevronLeft size={18} />
+              </button>
+              <button onClick={() => goTo(1)} className="hover:text-slate-600" aria-label="Próximo">
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
         </CardHeader>
 
-        <div className="grid grid-cols-7 gap-1 mb-1">
-          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-            <div key={d} className="text-center text-[11px] font-medium text-slate-400">
-              {d}
-            </div>
+        <div className="flex flex-wrap gap-1 mb-5 -mt-1">
+          {(Object.keys(VIEW_LABEL) as ViewMode[]).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
+                view === v ? "bg-brand-blue text-white" : "text-slate-500 hover:bg-slate-100"
+              }`}
+            >
+              {VIEW_LABEL[v]}
+            </button>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
-          {cells.map((d, i) => (
+        {view === "dia" && <DayView date={cursor} events={eventsOn(cursor)} />}
+        {view === "semana" && <WeekView cursor={cursor} today={today} eventsOn={eventsOn} />}
+        {view === "mes" && <MonthGrid year={year} month={month} today={today} eventsOn={eventsOn} />}
+        {view === "trimestre" && (
+          <MultiMonthGrid months={[0, 1, 2].map((i) => Math.floor(month / 3) * 3 + i)} year={year} today={today} eventsOn={eventsOn} cols={3} />
+        )}
+        {view === "semestre" && (
+          <MultiMonthGrid months={[0, 1, 2, 3, 4, 5].map((i) => Math.floor(month / 6) * 6 + i)} year={year} today={today} eventsOn={eventsOn} cols={3} />
+        )}
+        {view === "ano" && (
+          <MultiMonthGrid months={Array.from({ length: 12 }, (_, i) => i)} year={year} today={today} eventsOn={eventsOn} cols={4} />
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function EventChip({ e }: { e: CalendarEvent }) {
+  return (
+    <div
+      className="text-[9.5px] truncate rounded px-1 py-0.5 text-white"
+      style={{ background: AREA_COLOR[e.area] }}
+      title={e.label}
+    >
+      {e.label}
+    </div>
+  );
+}
+
+function DayView({ date, events }: { date: Date; events: CalendarEvent[] }) {
+  return (
+    <div>
+      {events.length === 0 ? (
+        <p className="text-sm text-slate-400">Nada registrado neste dia.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {events.map((e, i) => (
+            <li key={i} className="flex items-center gap-2.5 text-sm">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: AREA_COLOR[e.area] }} />
+              <span className="text-slate-700">{e.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function WeekView({
+  cursor,
+  today,
+  eventsOn,
+}: {
+  cursor: Date;
+  today: Date;
+  eventsOn: (d: Date) => CalendarEvent[];
+}) {
+  const start = startOfWeek(cursor);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+
+  return (
+    <div className="grid grid-cols-7 gap-1.5">
+      {days.map((d) => {
+        const dayEvents = eventsOn(d);
+        const isToday = isSameDay(d, today);
+        return (
+          <div
+            key={d.toISOString()}
+            className={`min-h-[140px] rounded-lg p-1.5 border ${
+              isToday ? "border-brand-blue bg-brand-blueSoft/40" : "border-slate-100"
+            }`}
+          >
+            <div className={`text-[11px] mb-1 ${isToday ? "text-brand-blue font-semibold" : "text-slate-500"}`}>
+              {WEEKDAYS[d.getDay()]} {d.getDate()}
+              {d.getDate() === 1 && ` de ${MONTH_ABBR[d.getMonth()]}`}
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {dayEvents.map((e, j) => (
+                <EventChip key={j} e={e} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MonthGrid({
+  year,
+  month,
+  today,
+  eventsOn,
+}: {
+  year: number;
+  month: number;
+  today: Date;
+  eventsOn: (d: Date) => CalendarEvent[];
+}) {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = [
+    ...Array(firstDay).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  return (
+    <div>
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="text-center text-[11px] font-medium text-slate-400">
+            {d}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          const date = d ? new Date(year, month, d) : null;
+          const isToday = date && isSameDay(date, today);
+          return (
             <div
               key={i}
               className={`min-h-[76px] rounded-lg p-1.5 border ${
-                d && isToday(d) ? "border-brand-blue bg-brand-blueSoft/40" : "border-slate-100"
+                isToday ? "border-brand-blue bg-brand-blueSoft/40" : "border-slate-100"
               }`}
             >
-              {d && (
+              {d && date && (
                 <>
-                  <div className={`text-[11px] mb-1 ${isToday(d) ? "text-brand-blue font-semibold" : "text-slate-500"}`}>
+                  <div className={`text-[11px] mb-1 ${isToday ? "text-brand-blue font-semibold" : "text-slate-500"}`}>
                     {d}
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    {(eventsByDay[d] || []).slice(0, 3).map((e, j) => (
-                      <div
-                        key={j}
-                        className="text-[9.5px] truncate rounded px-1 py-0.5 text-white"
-                        style={{ background: AREA_COLOR[e.area] }}
-                        title={e.label}
-                      >
-                        {e.label}
-                      </div>
+                    {eventsOn(date)
+                      .slice(0, 3)
+                      .map((e, j) => (
+                        <EventChip key={j} e={e} />
+                      ))}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MiniMonth({
+  year,
+  month,
+  today,
+  eventsOn,
+}: {
+  year: number;
+  month: number;
+  today: Date;
+  eventsOn: (d: Date) => CalendarEvent[];
+}) {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = [
+    ...Array(firstDay).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  return (
+    <div className="border border-slate-100 rounded-lg p-2">
+      <p className="text-xs font-semibold text-slate-700 capitalize mb-1.5">
+        {new Date(year, month, 1).toLocaleDateString("pt-BR", { month: "long" })}
+      </p>
+      <div className="grid grid-cols-7 gap-px">
+        {cells.map((d, i) => {
+          const date = d ? new Date(year, month, d) : null;
+          const isToday = date && isSameDay(date, today);
+          const dayEvents = date ? eventsOn(date) : [];
+          const areas = Array.from(new Set(dayEvents.map((e) => e.area))).slice(0, 3);
+          return (
+            <div key={i} className="flex flex-col items-center justify-start gap-0.5 py-0.5">
+              {d && (
+                <>
+                  <span
+                    className={`text-[9px] w-4 h-4 flex items-center justify-center rounded-full ${
+                      isToday ? "bg-brand-blue text-white font-semibold" : "text-slate-500"
+                    }`}
+                  >
+                    {d}
+                  </span>
+                  <div className="flex gap-0.5 h-1">
+                    {areas.map((a) => (
+                      <span key={a} className="w-1 h-1 rounded-full" style={{ background: AREA_COLOR[a] }} />
                     ))}
                   </div>
                 </>
               )}
             </div>
-          ))}
-        </div>
-      </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Tailwind precisa das classes de grid-cols escritas por extenso no código
+// para gerá-las — não dá pra montar "grid-cols-" + cols dinamicamente.
+const GRID_COLS: Record<number, string> = {
+  3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+  4: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
+};
+
+function MultiMonthGrid({
+  months,
+  year,
+  today,
+  eventsOn,
+  cols,
+}: {
+  months: number[];
+  year: number;
+  today: Date;
+  eventsOn: (d: Date) => CalendarEvent[];
+  cols: number;
+}) {
+  return (
+    <div className={`grid ${GRID_COLS[cols]} gap-3`}>
+      {months.map((m) => (
+        <MiniMonth key={m} year={year} month={m} today={today} eventsOn={eventsOn} />
+      ))}
     </div>
   );
 }
