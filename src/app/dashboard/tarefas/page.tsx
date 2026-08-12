@@ -9,7 +9,7 @@ import type { Task } from "@/lib/types";
 
 const FIELDS = [
   { name: "title", label: "Título", type: "text" as const, required: true },
-  { name: "due_date", label: "Prazo", type: "date" as const },
+  { name: "due_date", label: "Prazo", type: "date" as const, requiredWhenRecurring: true },
   ...recurrenceFields(),
 ];
 

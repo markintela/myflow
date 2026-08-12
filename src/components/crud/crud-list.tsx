@@ -46,6 +46,7 @@ export function CrudList<T extends { id: string; user_id: string }>({
 }: CrudListProps<T>) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const editingItem = items.find((i) => i.id === editingId);
 
@@ -64,6 +65,7 @@ export function CrudList<T extends { id: string; user_id: string }>({
               onClick={() => {
                 setEditingId(item.id);
                 setShowForm(true);
+                setFormError(null);
               }}
               className="p-1.5 rounded-md text-slate-400 hover:text-brand-blue hover:bg-brand-blueSoft"
               aria-label="Editar"
@@ -97,6 +99,7 @@ export function CrudList<T extends { id: string; user_id: string }>({
             onClick={() => {
               setEditingId(null);
               setShowForm(true);
+              setFormError(null);
             }}
           >
             <Plus size={14} /> Novo
@@ -112,7 +115,13 @@ export function CrudList<T extends { id: string; user_id: string }>({
             <span className="text-sm font-medium text-slate-700">
               {editingId ? "Editar registro" : "Novo registro"}
             </span>
-            <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600">
+            <button
+              onClick={() => {
+                setShowForm(false);
+                setFormError(null);
+              }}
+              className="text-slate-400 hover:text-slate-600"
+            >
               <X size={16} />
             </button>
           </div>
@@ -120,7 +129,10 @@ export function CrudList<T extends { id: string; user_id: string }>({
             fields={fields}
             initialValues={editingItem as any}
             submitLabel={editingId ? "Atualizar" : "Adicionar"}
-            onCancel={() => setShowForm(false)}
+            onCancel={() => {
+              setShowForm(false);
+              setFormError(null);
+            }}
             onSubmit={async (values) => {
               const result = editingId
                 ? await onUpdate(editingId, values as unknown as Partial<T>)
@@ -128,9 +140,13 @@ export function CrudList<T extends { id: string; user_id: string }>({
               if (!result.error) {
                 setShowForm(false);
                 setEditingId(null);
+                setFormError(null);
+              } else {
+                setFormError(result.error);
               }
             }}
           />
+          {formError && <p className="text-sm text-red-600 mt-2">{formError}</p>}
         </div>
       )}
 
