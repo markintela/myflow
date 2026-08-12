@@ -34,7 +34,11 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export default function EventosPage() {
-  const { items, loading, error, create, update, remove } = useCrud<Event>("events", "event_date");
+  const { items, sharedItems, currentUserId, loading, error, create, update, remove } = useCrud<Event>(
+    "events",
+    "event_date",
+    { includeShared: true }
+  );
 
   return (
     <div>
@@ -44,8 +48,11 @@ export default function EventosPage() {
       <CrudList
         title="Eventos"
         icon={<CalendarPlus size={18} className="text-brand-blue" />}
+        tableName="events"
+        currentUserId={currentUserId}
         fields={FIELDS}
         items={items}
+        sharedItems={sharedItems}
         loading={loading}
         error={error}
         onCreate={create}

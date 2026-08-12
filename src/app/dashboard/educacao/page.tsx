@@ -13,7 +13,11 @@ const FIELDS = [
 ];
 
 export default function EducacaoPage() {
-  const { items, loading, error, create, update, remove } = useCrud<Study>("studies", "study_date");
+  const { items, sharedItems, currentUserId, loading, error, create, update, remove } = useCrud<Study>(
+    "studies",
+    "study_date",
+    { includeShared: true }
+  );
 
   return (
     <div>
@@ -23,8 +27,11 @@ export default function EducacaoPage() {
       <CrudList
         title="Registros de estudo"
         icon={<BookOpen size={18} className="text-brand-blue" />}
+        tableName="studies"
+        currentUserId={currentUserId}
         fields={FIELDS}
         items={items}
+        sharedItems={sharedItems}
         loading={loading}
         error={error}
         onCreate={create}

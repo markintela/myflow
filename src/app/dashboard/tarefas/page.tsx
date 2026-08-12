@@ -12,7 +12,11 @@ const FIELDS = [
 ];
 
 export default function TarefasPage() {
-  const { items, loading, error, create, update, remove } = useCrud<Task>("tasks");
+  const { items, sharedItems, currentUserId, loading, error, create, update, remove } = useCrud<Task>(
+    "tasks",
+    "created_at",
+    { includeShared: true }
+  );
 
   return (
     <div>
@@ -22,8 +26,11 @@ export default function TarefasPage() {
       <CrudList
         title="Todas as tarefas"
         icon={<ListChecks size={18} className="text-brand-blue" />}
+        tableName="tasks"
+        currentUserId={currentUserId}
         fields={FIELDS}
         items={items}
+        sharedItems={sharedItems}
         loading={loading}
         error={error}
         onCreate={create}
@@ -31,7 +38,10 @@ export default function TarefasPage() {
         onDelete={remove}
         renderItem={(t) => (
           <div className="flex items-center gap-3">
-            <Checkbox checked={t.done} onCheckedChange={(v) => update(t.id, { done: v } as any)} />
+            <Checkbox
+              checked={t.done}
+              onCheckedChange={(v) => t.user_id === currentUserId && update(t.id, { done: v } as any)}
+            />
             <div>
               <p className={`text-sm ${t.done ? "text-slate-400 line-through" : "text-slate-800"}`}>{t.title}</p>
               {t.due_date && <p className="text-xs text-slate-400">Prazo: {t.due_date}</p>}

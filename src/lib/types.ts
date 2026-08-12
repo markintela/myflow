@@ -26,13 +26,69 @@ export type HealthLog = {
   created_at: string;
 };
 
+export type ExpenseType = "fixa" | "variavel";
+
 export type Expense = {
   id: string;
   user_id: string;
   description: string;
   amount: number;
   category: string;
+  expense_type: ExpenseType;
   expense_date: string;
+  created_at: string;
+};
+
+export const EXPENSE_CATEGORIES = [
+  { value: "moradia", label: "Moradia" },
+  { value: "alimentacao", label: "Alimentação" },
+  { value: "transporte", label: "Transporte" },
+  { value: "educacao", label: "Educação" },
+  { value: "lazer", label: "Lazer" },
+  { value: "saude", label: "Saúde" },
+  { value: "bem_estar", label: "Bem-estar" },
+  { value: "investimentos", label: "Investimentos" },
+  { value: "pessoal", label: "Pessoal" },
+  { value: "aplicativos", label: "Aplicativos" },
+  { value: "seguros", label: "Seguros" },
+  { value: "eventos", label: "Eventos" },
+  { value: "outros", label: "Outros" },
+] as const;
+
+export type ExpenseSplit = {
+  id: string;
+  expense_id: string;
+  user_id: string;
+  amount: number;
+  created_at: string;
+};
+
+export type IncomeType = "fixo" | "variavel";
+
+export type IncomeSource = {
+  id: string;
+  user_id: string;
+  name: string;
+  income_type: IncomeType;
+  amount: number;
+  income_date: string;
+  notes: string | null;
+  created_at: string;
+};
+
+export type Profile = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  created_at: string;
+};
+
+export type Share = {
+  id: string;
+  table_name: TableName;
+  record_id: string;
+  owner_id: string;
+  shared_with_id: string;
   created_at: string;
 };
 
@@ -73,4 +129,5 @@ export type TableName =
   | "expenses"
   | "leisure_events"
   | "events"
-  | "birthdays";
+  | "birthdays"
+  | "income_sources";

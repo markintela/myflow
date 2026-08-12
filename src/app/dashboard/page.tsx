@@ -1,16 +1,23 @@
 "use client";
 
-import { ListChecks, BookOpen, HeartPulse, Wallet, Gift, Waves, CalendarPlus } from "lucide-react";
+import { ListChecks, BookOpen, HeartPulse, Wallet, Gift, Waves, CalendarPlus, TrendingUp, TrendingDown } from "lucide-react";
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
-import type { Task, Study, Expense, Birthday, LeisureEvent, Event } from "@/lib/types";
+import { isInCurrentMonth } from "@/lib/utils";
+import { EXPENSE_CATEGORIES, type Task, type Study, type Expense, type Birthday, type LeisureEvent, type Event, type IncomeSource } from "@/lib/types";
+
+const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
+  EXPENSE_CATEGORIES.map((c) => [c.value, c.label])
+);
 
 // Visão geral "Hoje": puxa um resumo de cada tabela via Supabase.
 export default function HojePage() {
   const tasks = useCrud<Task>("tasks");
   const studies = useCrud<Study>("studies", "study_date");
   const expenses = useCrud<Expense>("expenses", "expense_date");
+  const income = useCrud<IncomeSource>("income_sources", "income_date");
   const birthdays = useCrud<Birthday>("birthdays", "birth_date");
   const leisure = useCrud<LeisureEvent>("leisure_events", "event_date");
   const events = useCrud<Event>("events", "event_date");
@@ -19,10 +26,94 @@ export default function HojePage() {
   const totalExpenses = expenses.items.reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalStudyHours = studies.items.reduce((s, st) => s + Number(st.hours || 0), 0);
 
+  const monthExpenses = expenses.items.filter((e) => isInCurrentMonth(e.expense_date));
+  const monthExpensesTotal = monthExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const monthIncomeTotal = income.items.reduce((s, i) => {
+    if (i.income_type === "fixo") return s + Number(i.amount || 0);
+    if (isInCurrentMonth(i.income_date)) return s + Number(i.amount || 0);
+    return s;
+  }, 0);
+  const saldo = monthIncomeTotal - monthExpensesTotal;
+
+  const incomeVsExpenseData = [
+    { name: "Renda", value: monthIncomeTotal, color: "#16A34A" },
+    { name: "Despesas", value: monthExpensesTotal, color: "#0891B2" },
+  ];
+
+  const byCategory = Object.entries(
+    monthExpenses.reduce<Record<string, number>>((acc, e) => {
+      acc[e.category] = (acc[e.category] ?? 0) + Number(e.amount || 0);
+      return acc;
+    }, {})
+  )
+    .map(([category, value]) => ({ name: CATEGORY_LABEL[category] ?? category, value }))
+    .sort((a, b) => b.value - a.value);
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-slate-900 mb-1">Visão geral</h1>
       <p className="text-slate-500 text-sm mb-6">Um resumo rápido de todas as áreas da sua vida.</p>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        <Card>
+          <CardHeader>
+            <CardTitle>Saúde financeira do mês</CardTitle>
+          </CardHeader>
+          <div className="flex items-center gap-2 mb-3">
+            {saldo >= 0 ? (
+              <TrendingUp size={16} className="text-brand-green" />
+            ) : (
+              <TrendingDown size={16} className="text-red-500" />
+            )}
+            <p className={`text-2xl font-mono font-medium ${saldo >= 0 ? "text-brand-green" : "text-red-500"}`}>
+              €{saldo.toFixed(2)}
+            </p>
+            <span className="text-xs text-slate-400">
+              saldo {saldo >= 0 ? "positivo" : "negativo"} do mês
+            </span>
+          </div>
+          {monthIncomeTotal === 0 && monthExpensesTotal === 0 ? (
+            <p className="text-sm text-slate-400">
+              Cadastre sua renda e suas despesas para acompanhar o mês.
+            </p>
+          ) : (
+            <div className="h-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={incomeVsExpenseData} layout="vertical" margin={{ left: 8, right: 24 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" width={70} tickLine={false} axisLine={false} fontSize={12} />
+                  <Tooltip formatter={(v) => `€${Number(v).toFixed(2)}`} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
+                    {incomeVsExpenseData.map((d) => (
+                      <Cell key={d.name} fill={d.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Despesas do mês por categoria</CardTitle>
+          </CardHeader>
+          {byCategory.length === 0 ? (
+            <p className="text-sm text-slate-400">Nenhuma despesa registrada este mês.</p>
+          ) : (
+            <div style={{ height: Math.max(byCategory.length * 32, 80) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={byCategory} layout="vertical" margin={{ left: 8, right: 24 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" width={90} tickLine={false} axisLine={false} fontSize={12} />
+                  <Tooltip formatter={(v) => `€${Number(v).toFixed(2)}`} />
+                  <Bar dataKey="value" fill="#0891B2" radius={[0, 4, 4, 0]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <Card>

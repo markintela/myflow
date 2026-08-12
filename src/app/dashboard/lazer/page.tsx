@@ -13,7 +13,11 @@ const FIELDS = [
 ];
 
 export default function LazerPage() {
-  const { items, loading, error, create, update, remove } = useCrud<LeisureEvent>("leisure_events", "event_date");
+  const { items, sharedItems, currentUserId, loading, error, create, update, remove } = useCrud<LeisureEvent>(
+    "leisure_events",
+    "event_date",
+    { includeShared: true }
+  );
 
   return (
     <div>
@@ -23,8 +27,11 @@ export default function LazerPage() {
       <CrudList
         title="Programas de lazer"
         icon={<Waves size={18} className="text-brand-green" />}
+        tableName="leisure_events"
+        currentUserId={currentUserId}
         fields={FIELDS}
         items={items}
+        sharedItems={sharedItems}
         loading={loading}
         error={error}
         onCreate={create}

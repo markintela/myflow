@@ -30,7 +30,11 @@ const METRIC_LABEL: Record<string, string> = {
 };
 
 export default function SaudePage() {
-  const { items, loading, error, create, update, remove } = useCrud<HealthLog>("health_logs", "log_date");
+  const { items, sharedItems, currentUserId, loading, error, create, update, remove } = useCrud<HealthLog>(
+    "health_logs",
+    "log_date",
+    { includeShared: true }
+  );
 
   return (
     <div>
@@ -40,8 +44,11 @@ export default function SaudePage() {
       <CrudList
         title="Registros de saúde"
         icon={<HeartPulse size={18} className="text-brand-green" />}
+        tableName="health_logs"
+        currentUserId={currentUserId}
         fields={FIELDS}
         items={items}
+        sharedItems={sharedItems}
         loading={loading}
         error={error}
         onCreate={create}

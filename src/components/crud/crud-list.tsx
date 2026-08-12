@@ -3,32 +3,43 @@
 import { useState } from "react";
 import { Pencil, Trash2, Plus, X } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EntityForm, type FieldConfig } from "@/components/crud/entity-form";
+import { ShareButton } from "@/components/crud/share-button";
+import type { TableName } from "@/lib/types";
 
-interface CrudListProps<T extends { id: string }> {
+interface CrudListProps<T extends { id: string; user_id: string }> {
   title: string;
   icon?: React.ReactNode;
+  tableName: TableName;
+  currentUserId: string | null;
   fields: FieldConfig[];
   items: T[];
+  sharedItems?: T[];
   loading: boolean;
   error: string | null;
   renderItem: (item: T) => React.ReactNode;
+  renderActions?: (item: T) => React.ReactNode;
   onCreate: (values: Partial<T>) => Promise<{ error: string | null }>;
   onUpdate: (id: string, values: Partial<T>) => Promise<{ error: string | null }>;
   onDelete: (id: string) => Promise<{ error: string | null }>;
 }
 
-// Componente de CRUD completo (listar, criar, editar, apagar) reutilizado em
-// todas as páginas do dashboard.
-export function CrudList<T extends { id: string }>({
+// Componente de CRUD completo (listar, criar, editar, apagar, compartilhar)
+// reutilizado em todas as páginas do dashboard.
+export function CrudList<T extends { id: string; user_id: string }>({
   title,
   icon,
+  tableName,
+  currentUserId,
   fields,
   items,
+  sharedItems = [],
   loading,
   error,
   renderItem,
+  renderActions,
   onCreate,
   onUpdate,
   onDelete,
@@ -37,6 +48,40 @@ export function CrudList<T extends { id: string }>({
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const editingItem = items.find((i) => i.id === editingId);
+
+  const renderRow = (item: T, owned: boolean) => (
+    <li key={item.id} className="flex items-center justify-between py-2.5 gap-3">
+      <div className="min-w-0 flex-1 flex items-center gap-2">
+        <div className="min-w-0 flex-1">{renderItem(item)}</div>
+        {!owned && <Badge className="bg-brand-greenSoft text-brand-green shrink-0">Compartilhado</Badge>}
+      </div>
+      <div className="flex gap-1 shrink-0 items-center">
+        {renderActions?.(item)}
+        {owned && <ShareButton tableName={tableName} recordId={item.id} />}
+        {owned && (
+          <>
+            <button
+              onClick={() => {
+                setEditingId(item.id);
+                setShowForm(true);
+              }}
+              className="p-1.5 rounded-md text-slate-400 hover:text-brand-blue hover:bg-brand-blueSoft"
+              aria-label="Editar"
+            >
+              <Pencil size={14} />
+            </button>
+            <button
+              onClick={() => onDelete(item.id)}
+              className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50"
+              aria-label="Apagar"
+            >
+              <Trash2 size={14} />
+            </button>
+          </>
+        )}
+      </div>
+    </li>
+  );
 
   return (
     <Card>
@@ -91,34 +136,12 @@ export function CrudList<T extends { id: string }>({
 
       {loading ? (
         <p className="text-sm text-slate-400">Carregando...</p>
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && sharedItems.length === 0 ? (
         <p className="text-sm text-slate-400">Nenhum registro ainda. Adicione o primeiro.</p>
       ) : (
         <ul className="divide-y divide-slate-100">
-          {items.map((item) => (
-            <li key={item.id} className="flex items-center justify-between py-2.5 gap-3">
-              <div className="min-w-0 flex-1">{renderItem(item)}</div>
-              <div className="flex gap-1 shrink-0">
-                <button
-                  onClick={() => {
-                    setEditingId(item.id);
-                    setShowForm(true);
-                  }}
-                  className="p-1.5 rounded-md text-slate-400 hover:text-brand-blue hover:bg-brand-blueSoft"
-                  aria-label="Editar"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  onClick={() => onDelete(item.id)}
-                  className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50"
-                  aria-label="Apagar"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </li>
-          ))}
+          {items.map((item) => renderRow(item, item.user_id === currentUserId))}
+          {sharedItems.map((item) => renderRow(item, false))}
         </ul>
       )}
     </Card>

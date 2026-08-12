@@ -12,7 +12,11 @@ const FIELDS = [
 ];
 
 export default function AniversariosPage() {
-  const { items, loading, error, create, update, remove } = useCrud<Birthday>("birthdays", "birth_date");
+  const { items, sharedItems, currentUserId, loading, error, create, update, remove } = useCrud<Birthday>(
+    "birthdays",
+    "birth_date",
+    { includeShared: true }
+  );
 
   return (
     <div>
@@ -22,8 +26,11 @@ export default function AniversariosPage() {
       <CrudList
         title="Todos os aniversários"
         icon={<Gift size={18} className="text-brand-blue" />}
+        tableName="birthdays"
+        currentUserId={currentUserId}
         fields={FIELDS}
         items={items}
+        sharedItems={sharedItems}
         loading={loading}
         error={error}
         onCreate={create}
