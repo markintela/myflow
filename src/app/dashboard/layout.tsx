@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Sidebar } from "@/components/sidebar";
+import { DashboardShell } from "@/components/dashboard-shell";
 
 // Todas as páginas dentro de /dashboard passam por aqui. O middleware já
 // bloqueia usuários não autenticados, mas checamos de novo no server para
@@ -19,10 +19,5 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 p-8 max-w-[1180px]">{children}</main>
-    </div>
-  );
+  return <DashboardShell>{children}</DashboardShell>;
 }

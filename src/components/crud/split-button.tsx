@@ -61,7 +61,7 @@ export function SplitButton({ expenseId, onChange }: SplitButtonProps) {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-10 mt-1 w-72 bg-white border border-slate-200 rounded-xl shadow-md p-3">
+        <div className="absolute right-0 z-10 mt-1 w-72 max-w-[90vw] bg-white border border-slate-200 rounded-xl shadow-md p-3">
           <div className="flex justify-between items-center mb-2">
             <span className="text-xs font-medium text-slate-700">Repartir despesa</span>
             <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600">

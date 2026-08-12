@@ -306,29 +306,31 @@ function WeekView({
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
 
   return (
-    <div className="grid grid-cols-7 gap-1.5">
-      {days.map((d) => {
-        const dayEvents = eventsOn(d);
-        const isToday = isSameDay(d, today);
-        return (
-          <div
-            key={d.toISOString()}
-            className={`min-h-[140px] rounded-lg p-1.5 border ${
-              isToday ? "border-brand-blue bg-brand-blueSoft/40" : "border-slate-100"
-            }`}
-          >
-            <div className={`text-[11px] mb-1 ${isToday ? "text-brand-blue font-semibold" : "text-slate-500"}`}>
-              {WEEKDAYS[d.getDay()]} {d.getDate()}
-              {d.getDate() === 1 && ` de ${MONTH_ABBR[d.getMonth()]}`}
+    <div className="overflow-x-auto -mx-1 px-1">
+      <div className="grid grid-cols-7 gap-1.5 min-w-[640px]">
+        {days.map((d) => {
+          const dayEvents = eventsOn(d);
+          const isToday = isSameDay(d, today);
+          return (
+            <div
+              key={d.toISOString()}
+              className={`min-h-[140px] rounded-lg p-1.5 border ${
+                isToday ? "border-brand-blue bg-brand-blueSoft/40" : "border-slate-100"
+              }`}
+            >
+              <div className={`text-[11px] mb-1 ${isToday ? "text-brand-blue font-semibold" : "text-slate-500"}`}>
+                {WEEKDAYS[d.getDay()]} {d.getDate()}
+                {d.getDate() === 1 && ` de ${MONTH_ABBR[d.getMonth()]}`}
+              </div>
+              <div className="flex flex-col gap-0.5">
+                {dayEvents.map((e, j) => (
+                  <EventChip key={j} e={e} />
+                ))}
+              </div>
             </div>
-            <div className="flex flex-col gap-0.5">
-              {dayEvents.map((e, j) => (
-                <EventChip key={j} e={e} />
-              ))}
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -352,42 +354,44 @@ function MonthGrid({
   ];
 
   return (
-    <div>
-      <div className="grid grid-cols-7 gap-1 mb-1">
-        {WEEKDAYS.map((d) => (
-          <div key={d} className="text-center text-[11px] font-medium text-slate-400">
-            {d}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((d, i) => {
-          const date = d ? new Date(year, month, d) : null;
-          const isToday = date && isSameDay(date, today);
-          return (
-            <div
-              key={i}
-              className={`min-h-[76px] rounded-lg p-1.5 border ${
-                isToday ? "border-brand-blue bg-brand-blueSoft/40" : "border-slate-100"
-              }`}
-            >
-              {d && date && (
-                <>
-                  <div className={`text-[11px] mb-1 ${isToday ? "text-brand-blue font-semibold" : "text-slate-500"}`}>
-                    {d}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    {eventsOn(date)
-                      .slice(0, 3)
-                      .map((e, j) => (
-                        <EventChip key={j} e={e} />
-                      ))}
-                  </div>
-                </>
-              )}
+    <div className="overflow-x-auto -mx-1 px-1">
+      <div className="min-w-[560px]">
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {WEEKDAYS.map((d) => (
+            <div key={d} className="text-center text-[11px] font-medium text-slate-400">
+              {d}
             </div>
-          );
-        })}
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((d, i) => {
+            const date = d ? new Date(year, month, d) : null;
+            const isToday = date && isSameDay(date, today);
+            return (
+              <div
+                key={i}
+                className={`min-h-[76px] rounded-lg p-1.5 border ${
+                  isToday ? "border-brand-blue bg-brand-blueSoft/40" : "border-slate-100"
+                }`}
+              >
+                {d && date && (
+                  <>
+                    <div className={`text-[11px] mb-1 ${isToday ? "text-brand-blue font-semibold" : "text-slate-500"}`}>
+                      {d}
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      {eventsOn(date)
+                        .slice(0, 3)
+                        .map((e, j) => (
+                          <EventChip key={j} e={e} />
+                        ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
