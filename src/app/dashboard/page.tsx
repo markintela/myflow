@@ -1,7 +1,7 @@
 "use client";
 
 import { ListChecks, BookOpen, HeartPulse, Wallet, Gift, Waves, CalendarPlus, TrendingUp, TrendingDown } from "lucide-react";
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
@@ -36,8 +36,8 @@ export default function HojePage() {
   const saldo = monthIncomeTotal - monthExpensesTotal;
 
   const incomeVsExpenseData = [
-    { name: "Renda", value: monthIncomeTotal, color: "#16A34A" },
-    { name: "Despesas", value: monthExpensesTotal, color: "#0891B2" },
+    { name: "Renda", value: monthIncomeTotal, color: "#2DAE60" },
+    { name: "Despesas", value: monthExpensesTotal, color: "#269EBB" },
   ];
 
   const byCategory = Object.entries(
@@ -87,6 +87,13 @@ export default function HojePage() {
                     {incomeVsExpenseData.map((d) => (
                       <Cell key={d.name} fill={d.color} />
                     ))}
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      formatter={(v) => `€${Number(v).toFixed(2)}`}
+                      className="fill-slate-600"
+                      fontSize={12}
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -107,7 +114,7 @@ export default function HojePage() {
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" width={90} tickLine={false} axisLine={false} fontSize={12} />
                   <Tooltip formatter={(v) => `€${Number(v).toFixed(2)}`} />
-                  <Bar dataKey="value" fill="#0891B2" radius={[0, 4, 4, 0]} barSize={16} />
+                  <Bar dataKey="value" fill="#269EBB" radius={[0, 4, 4, 0]} barSize={16} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

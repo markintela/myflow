@@ -76,10 +76,20 @@ export type IncomeSource = {
   created_at: string;
 };
 
+export type BloodType = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+
 export type Profile = {
   id: string;
   email: string;
   full_name: string | null;
+  date_of_birth: string | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  phone: string | null;
+  blood_type: BloodType | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  avatar_url: string | null;
   created_at: string;
 };
 

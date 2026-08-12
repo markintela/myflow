@@ -13,6 +13,7 @@ import {
   Wallet,
   Waves,
   Gift,
+  User,
   LogOut,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -29,6 +30,7 @@ const NAV = [
   { href: "/dashboard/lazer", label: "Lazer", icon: Waves },
   { href: "/dashboard/eventos", label: "Eventos", icon: CalendarPlus },
   { href: "/dashboard/aniversarios", label: "Aniversários", icon: Gift },
+  { href: "/dashboard/perfil", label: "Perfil", icon: User },
 ];
 
 export function Sidebar() {
