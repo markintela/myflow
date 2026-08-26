@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Wallet, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useCrud } from "@/hooks/use-crud";
 import { useProfile } from "@/hooks/use-profile";
 import { CrudList } from "@/components/crud/crud-list";
@@ -82,13 +83,29 @@ export default function DespesasPage() {
   }, [idsKey]);
 
   const periodTotal = periodItems.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const periodFixedTotal = periodItems
+    .filter((e) => e.expense_type === "fixa")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const periodVariableTotal = periodItems
+    .filter((e) => e.expense_type === "variavel")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
   const periodLabel = formatPeriodLabel(mode, cursor, monthStartDay);
 
   return (
     <div>
       <h1 className="text-2xl font-semibold text-slate-900 mb-1">Despesas</h1>
-      <p className="text-slate-500 text-sm mb-1">Controle seus gastos fixos e variáveis por categoria.</p>
-      <p className="text-sm font-mono text-brand-cyan mb-6">Total do período: €{periodTotal.toFixed(2)}</p>
+      <p className="text-slate-500 text-sm mb-3">Controle seus gastos fixos e variáveis por categoria.</p>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mb-6 text-sm font-mono">
+        <span className="text-brand-cyan">Total do período: €{periodTotal.toFixed(2)}</span>
+        <span className="inline-flex items-center gap-1.5 text-brand-blue">
+          <span className="w-2 h-2 rounded-full bg-brand-blue shrink-0" />
+          Fixas: €{periodFixedTotal.toFixed(2)}
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-amber-600">
+          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+          Variáveis: €{periodVariableTotal.toFixed(2)}
+        </span>
+      </div>
 
       <Card className="mb-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -159,10 +176,20 @@ export default function DespesasPage() {
             <div className="flex justify-between w-full pr-2">
               <div>
                 <p className="text-sm text-slate-800 font-medium">{e.description}</p>
-                <p className="text-xs text-slate-400">
-                  {CATEGORY_LABEL[e.category] ?? e.category} · {e.expense_type === "fixa" ? "Fixa" : "Variável"} ·{" "}
-                  {e.expense_date}
-                </p>
+                <div className="flex items-center flex-wrap gap-1.5 mt-1">
+                  <Badge
+                    className={
+                      e.expense_type === "fixa"
+                        ? "bg-brand-blueSoft text-brand-blue"
+                        : "bg-amber-100 text-amber-700"
+                    }
+                  >
+                    {e.expense_type === "fixa" ? "Fixa" : "Variável"}
+                  </Badge>
+                  <span className="text-xs text-slate-400">
+                    {CATEGORY_LABEL[e.category] ?? e.category} · {e.expense_date}
+                  </span>
+                </div>
                 {splits && splits.length > 0 && (
                   <p className="text-xs text-brand-cyan mt-0.5">
                     Dividida com {splits.length} {splits.length === 1 ? "pessoa" : "pessoas"}
