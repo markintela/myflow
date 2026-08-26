@@ -25,7 +25,7 @@ const NAV = [
   { href: "/dashboard/tarefas", label: "Tarefas", icon: ListChecks },
   { href: "/dashboard/educacao", label: "Educação", icon: BookOpen },
   { href: "/dashboard/saude", label: "Saúde", icon: HeartPulse },
-  { href: "/dashboard/renda", label: "Renda", icon: Landmark },
+  { href: "/dashboard/renda", label: "Receitas", icon: Landmark },
   { href: "/dashboard/despesas", label: "Despesas", icon: Wallet },
   { href: "/dashboard/lazer", label: "Lazer", icon: Waves },
   { href: "/dashboard/eventos", label: "Eventos", icon: CalendarPlus },

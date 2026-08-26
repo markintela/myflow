@@ -5,7 +5,8 @@ import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YA
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
-import { isInCurrentMonth } from "@/lib/utils";
+import { useProfile } from "@/hooks/use-profile";
+import { isInFinancialMonth, formatFinancialMonthLabel } from "@/lib/utils";
 import { EXPENSE_CATEGORIES, type Task, type Study, type Expense, type Birthday, type LeisureEvent, type Event, type IncomeSource } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
@@ -21,22 +22,24 @@ export default function HojePage() {
   const birthdays = useCrud<Birthday>("birthdays", "birth_date");
   const leisure = useCrud<LeisureEvent>("leisure_events", "event_date");
   const events = useCrud<Event>("events", "event_date");
+  const { profile } = useProfile();
+  const monthStartDay = profile?.month_start_day ?? 25;
 
   const pendingTasks = tasks.items.filter((t) => !t.done);
   const totalExpenses = expenses.items.reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalStudyHours = studies.items.reduce((s, st) => s + Number(st.hours || 0), 0);
 
-  const monthExpenses = expenses.items.filter((e) => isInCurrentMonth(e.expense_date));
+  const monthExpenses = expenses.items.filter((e) => isInFinancialMonth(e.expense_date, monthStartDay));
   const monthExpensesTotal = monthExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
   const monthIncomeTotal = income.items.reduce((s, i) => {
     if (i.income_type === "fixo") return s + Number(i.amount || 0);
-    if (isInCurrentMonth(i.income_date)) return s + Number(i.amount || 0);
+    if (isInFinancialMonth(i.income_date, monthStartDay)) return s + Number(i.amount || 0);
     return s;
   }, 0);
   const saldo = monthIncomeTotal - monthExpensesTotal;
 
   const incomeVsExpenseData = [
-    { name: "Renda", value: monthIncomeTotal, color: "#2DAE60" },
+    { name: "Receitas", value: monthIncomeTotal, color: "#2DAE60" },
     { name: "Despesas", value: monthExpensesTotal, color: "#269EBB" },
   ];
 
@@ -59,6 +62,7 @@ export default function HojePage() {
           <CardHeader>
             <CardTitle>Saúde financeira do mês</CardTitle>
           </CardHeader>
+          <p className="text-xs text-slate-400 -mt-2 mb-3">Período: {formatFinancialMonthLabel(monthStartDay)}</p>
           <div className="flex items-center gap-2 mb-3">
             {saldo >= 0 ? (
               <TrendingUp size={16} className="text-brand-green" />

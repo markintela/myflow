@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Wallet, Landmark, TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCrud } from "@/hooks/use-crud";
+import { useProfile } from "@/hooks/use-profile";
+import { getFinancialMonthRange, formatFinancialMonthLabel } from "@/lib/utils";
 import type { Task, Study, HealthLog, Expense, IncomeSource, Birthday, LeisureEvent, Event, RecurrenceType } from "@/lib/types";
 
 type CalendarEvent = {
@@ -19,7 +21,7 @@ const AREA_COLOR: Record<string, string> = {
   tarefa: "#2563EB",
   educacao: "#2563EB",
   saude: "#16A34A",
-  renda: "#D97706",
+  receita: "#D97706",
   despesa: "#0891B2",
   lazer: "#10B981",
   evento: "#7C3AED",
@@ -103,6 +105,8 @@ export default function CalendarioPage() {
   const birthdays = useCrud<Birthday>("birthdays", "birth_date");
   const leisure = useCrud<LeisureEvent>("leisure_events", "event_date");
   const events = useCrud<Event>("events", "event_date");
+  const { profile } = useProfile();
+  const monthStartDay = profile?.month_start_day ?? 25;
 
   const [cursor, setCursor] = useState(new Date());
   const [view, setView] = useState<ViewMode>("mes");
@@ -127,7 +131,7 @@ export default function CalendarioPage() {
     expenses.items.forEach((e) =>
       push(e.expense_date, e.description, "despesa", e.recurrence_type, e.recurrence_end_date)
     );
-    income.items.forEach((i) => push(i.income_date, i.name, "renda", i.recurrence_type, i.recurrence_end_date));
+    income.items.forEach((i) => push(i.income_date, i.name, "receita", i.recurrence_type, i.recurrence_end_date));
     leisure.items.forEach((l) => push(l.event_date, l.title, "lazer", l.recurrence_type, l.recurrence_end_date));
     events.items.forEach((e) => push(e.event_date, e.title, "evento", e.recurrence_type, e.recurrence_end_date));
     birthdays.items.forEach((b) =>
@@ -200,12 +204,70 @@ export default function CalendarioPage() {
     return `${year}`;
   }, [cursor, view, month, year]);
 
+  // Resumo de despesas/receitas do mês financeiro (dia configurável em
+  // Perfil) que contém o mês de calendário exibido — só faz sentido na visão
+  // "Mês", já que as demais visões não mapeiam 1:1 para um único período.
+  const financialSummary = useMemo(() => {
+    if (view !== "mes") return null;
+    const { start, end } = getFinancialMonthRange(monthStartDay, new Date(year, month, 1));
+    const inRange = (dateStr: string) => {
+      const d = parseDateOnly(dateStr);
+      return d >= start && d <= end;
+    };
+    const totalExpenses = expenses.items
+      .filter((e) => inRange(e.expense_date))
+      .reduce((s, e) => s + Number(e.amount || 0), 0);
+    const totalIncome = income.items.reduce((s, i) => {
+      if (i.income_type === "fixo") return s + Number(i.amount || 0);
+      if (inRange(i.income_date)) return s + Number(i.amount || 0);
+      return s;
+    }, 0);
+    return { totalExpenses, totalIncome, saldo: totalIncome - totalExpenses };
+  }, [view, monthStartDay, year, month, expenses.items, income.items]);
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-slate-900 mb-1">Calendário</h1>
       <p className="text-slate-500 text-sm mb-6">
-        Tarefas, educação, saúde, despesas, renda, lazer, eventos e aniversários, todos no mesmo lugar.
+        Tarefas, educação, saúde, despesas, receitas, lazer, eventos e aniversários, todos no mesmo lugar.
       </p>
+
+      {financialSummary && (
+        <Card className="mb-5">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Wallet size={18} className="text-brand-blue" />
+              <CardTitle>Resumo financeiro do mês</CardTitle>
+            </div>
+            <span className="text-xs text-slate-400">{formatFinancialMonthLabel(monthStartDay, new Date(year, month, 1))}</span>
+          </CardHeader>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <div className="flex items-center gap-1.5 text-slate-400 text-xs mb-0.5">
+                <Landmark size={13} />
+                Receitas
+              </div>
+              <p className="text-lg font-mono font-medium text-brand-green">€{financialSummary.totalIncome.toFixed(2)}</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 text-slate-400 text-xs mb-0.5">
+                <Wallet size={13} />
+                Despesas
+              </div>
+              <p className="text-lg font-mono font-medium text-brand-cyan">€{financialSummary.totalExpenses.toFixed(2)}</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 text-slate-400 text-xs mb-0.5">
+                {financialSummary.saldo >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                Saldo
+              </div>
+              <p className={`text-lg font-mono font-medium ${financialSummary.saldo >= 0 ? "text-brand-green" : "text-red-500"}`}>
+                €{financialSummary.saldo.toFixed(2)}
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { User, Camera } from "lucide-react";
+import { User, Camera, Wallet } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { useProfile } from "@/hooks/use-profile";
 import type { BloodType, Profile } from "@/lib/types";
 
 const BLOOD_TYPES: BloodType[] = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+const MONTH_START_DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 function calculateAge(dateOfBirth: string | null) {
   if (!dateOfBirth) return null;
@@ -205,6 +206,53 @@ export default function PerfilPage() {
           </div>
 
           <div className="sm:col-span-2 flex items-center gap-3 mt-1">
+            <Button type="submit" size="sm" disabled={saving || !form}>
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+            {saved && <span className="text-xs text-brand-green">Salvo com sucesso.</span>}
+            {saveError && <span className="text-xs text-red-600">{saveError}</span>}
+          </div>
+        </form>
+      </Card>
+
+      <Card className="max-w-2xl mt-5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Wallet size={18} className="text-brand-blue" />
+            <CardTitle>Mês financeiro</CardTitle>
+          </div>
+        </CardHeader>
+        <form onSubmit={handleSave}>
+          <p className="text-sm text-slate-500 mb-1">
+            Dia em que o mês começa para os cálculos de receitas e despesas (dashboard e calendário).
+          </p>
+          <p className="text-xs text-slate-400 mb-3">
+            Por exemplo, começando no dia {values.month_start_day ?? 25}, o "mês" vai do dia{" "}
+            {values.month_start_day ?? 25} até o dia anterior do mês seguinte — útil para alinhar com a data do
+            salário.
+          </p>
+          <div className="grid grid-cols-7 gap-1.5 max-w-xs mb-4">
+            {MONTH_START_DAYS.map((day) => {
+              const selected = Number(values.month_start_day ?? 25) === day;
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setField("month_start_day", String(day))}
+                  aria-pressed={selected}
+                  aria-label={`Começar o mês no dia ${day}`}
+                  className={`h-8 w-8 rounded-lg text-xs font-medium flex items-center justify-center transition-colors ${
+                    selected
+                      ? "bg-brand-blue text-white font-semibold"
+                      : "text-slate-600 hover:bg-brand-blueSoft"
+                  }`}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-3">
             <Button type="submit" size="sm" disabled={saving || !form}>
               {saving ? "Salvando..." : "Salvar"}
             </Button>

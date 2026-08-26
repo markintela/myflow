@@ -109,6 +109,7 @@ export type Profile = {
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   avatar_url: string | null;
+  month_start_day: number;
   created_at: string;
 };
 

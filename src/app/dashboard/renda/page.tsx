@@ -2,9 +2,10 @@
 
 import { Landmark } from "lucide-react";
 import { useCrud } from "@/hooks/use-crud";
+import { useProfile } from "@/hooks/use-profile";
 import { CrudList } from "@/components/crud/crud-list";
 import { recurrenceFields } from "@/components/crud/entity-form";
-import { isInCurrentMonth } from "@/lib/utils";
+import { isInFinancialMonth, formatFinancialMonthLabel } from "@/lib/utils";
 import type { IncomeSource } from "@/lib/types";
 
 const FIELDS = [
@@ -28,23 +29,25 @@ const FIELDS = [
 export default function RendaPage() {
   const { items, sharedItems, currentUserId, loading, error, create, update, remove } =
     useCrud<IncomeSource>("income_sources", "income_date", { includeShared: true });
+  const { profile } = useProfile();
+  const monthStartDay = profile?.month_start_day ?? 25;
 
   const monthlyBudget = items.reduce((sum, i) => {
     if (i.income_type === "fixo") return sum + Number(i.amount || 0);
-    if (isInCurrentMonth(i.income_date)) return sum + Number(i.amount || 0);
+    if (isInFinancialMonth(i.income_date, monthStartDay)) return sum + Number(i.amount || 0);
     return sum;
   }, 0);
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-slate-900 mb-1">Renda</h1>
-      <p className="text-slate-500 text-sm mb-1">Empregos fixos e fontes de renda variável.</p>
+      <h1 className="text-2xl font-semibold text-slate-900 mb-1">Receitas</h1>
+      <p className="text-slate-500 text-sm mb-1">Empregos fixos e fontes de receita variável.</p>
       <p className="text-sm font-mono text-brand-green mb-6">
-        Orçamento estimado do mês: €{monthlyBudget.toFixed(2)}
+        Receita estimada do mês ({formatFinancialMonthLabel(monthStartDay)}): €{monthlyBudget.toFixed(2)}
       </p>
 
       <CrudList
-        title="Todas as fontes de renda"
+        title="Todas as fontes de receita"
         icon={<Landmark size={18} className="text-brand-green" />}
         tableName="income_sources"
         currentUserId={currentUserId}
