@@ -26,11 +26,32 @@ export function useProfile() {
       return;
     }
 
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    // maybeSingle (não single) — se a linha ainda não existir (ex.: trigger
+    // de criação da conta não rodou a tempo), volta `data: null` em vez de
+    // erro 406, e criamos a linha abaixo em vez de deixar o app sem perfil.
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
     if (error) {
       setError(error.message);
-    } else {
+      setLoading(false);
+      return;
+    }
+
+    if (data) {
       setProfile(data as Profile);
+      setLoading(false);
+      return;
+    }
+
+    const { data: created, error: createError } = await supabase
+      .from("profiles")
+      .upsert({ id: user.id, email: user.email ?? "" }, { onConflict: "id" })
+      .select()
+      .single();
+
+    if (createError) {
+      setError(createError.message);
+    } else {
+      setProfile(created as Profile);
     }
     setLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
