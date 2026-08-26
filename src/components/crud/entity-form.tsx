@@ -21,6 +21,10 @@ export type FieldConfig = {
   // Fica obrigatório quando o campo "recurrence_type" do mesmo form não for
   // "none" — é a data inicial a partir da qual a repetição é calculada.
   requiredWhenRecurring?: boolean;
+  // Só fica habilitado (clicável) quando outro campo do form tem um valor
+  // diferente do informado — ex: "repetir sempre" não faz sentido sem uma
+  // frequência (semanal/mensal/anual) escolhida antes.
+  enabledWhen?: { field: string; notEquals: string };
 };
 
 // Campos de repetição (semanal/mensal/anual, sempre ou até uma data)
@@ -41,6 +45,7 @@ export function recurrenceFields(defaultValue: RecurrenceType = "none"): FieldCo
       type: "checkbox",
       virtual: true,
       disables: "recurrence_end_date",
+      enabledWhen: { field: "recurrence_type", notEquals: "none" },
       defaultValue: "",
     },
     { name: "recurrence_end_date", label: "Repetir até (opcional)", type: "date" },
@@ -87,6 +92,13 @@ export function EntityForm({
       const field = fields.find((f) => f.name === name);
       // null, não "" — string vazia é inválida pra uma coluna date no Postgres.
       if (field?.disables && value) next[field.disables] = null;
+      // Campos que dependem deste (ex: "repetir sempre" depende de uma
+      // frequência escolhida) são desmarcados se ficarem desabilitados.
+      fields.forEach((f) => {
+        if (f.enabledWhen?.field === name && value === f.enabledWhen.notEquals) {
+          next[f.name] = false;
+        }
+      });
       return next;
     });
   };
@@ -116,13 +128,17 @@ export function EntityForm({
         const isRequired = f.required || (f.requiredWhenRecurring && isRecurring);
 
         if (f.type === "checkbox") {
+          const checkboxEnabled = !f.enabledWhen || values[f.enabledWhen.field] !== f.enabledWhen.notEquals;
           return (
             <div key={f.name} className="flex items-center gap-2 pt-5">
               <Checkbox
                 checked={!!values[f.name]}
                 onCheckedChange={(v) => handleChange(f.name, v)}
+                disabled={!checkboxEnabled}
               />
-              <span className="text-sm text-slate-700">{f.label}</span>
+              <span className={`text-sm ${checkboxEnabled ? "text-slate-700" : "text-slate-400"}`}>
+                {f.label}
+              </span>
             </div>
           );
         }
