@@ -8,9 +8,25 @@ export function cn(...inputs: ClassValue[]) {
 // Datas do app são "YYYY-MM-DD" (date column do Postgres) — parse manual
 // evita o shift de timezone do `new Date("YYYY-MM-DD")` (interpretado como
 // UTC meia-noite pelo JS).
-function parseDateOnly(dateStr: string) {
+export function parseDateOnly(dateStr: string) {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(y, m - 1, d);
+}
+
+export function addDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+export function addMonths(date: Date, months: number) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
+
+export function startOfWeek(date: Date) {
+  return addDays(date, -date.getDay());
 }
 
 // "Mês financeiro": intervalo de `startDay` deste mês até `startDay - 1` do
@@ -39,4 +55,43 @@ export function formatFinancialMonthLabel(startDay: number, refDate: Date = new 
   }
   const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
   return `${fmt(start)} – ${fmt(end)}`;
+}
+
+// Filtro de período reutilizável (semana/mês/ano) para listas de
+// despesas/receitas — "mês" usa o mês financeiro (dia configurável em
+// Perfil), "semana" e "ano" usam limites de calendário padrão.
+export type PeriodMode = "semana" | "mes" | "ano";
+
+export function getPeriodRange(mode: PeriodMode, cursor: Date, monthStartDay: number) {
+  if (mode === "semana") {
+    const start = startOfWeek(cursor);
+    return { start, end: addDays(start, 6) };
+  }
+  if (mode === "ano") {
+    return { start: new Date(cursor.getFullYear(), 0, 1), end: new Date(cursor.getFullYear(), 11, 31) };
+  }
+  return getFinancialMonthRange(monthStartDay, cursor);
+}
+
+export function isInPeriod(dateStr: string, start: Date, end: Date) {
+  const date = parseDateOnly(dateStr);
+  return date >= start && date <= end;
+}
+
+export function formatPeriodLabel(mode: PeriodMode, cursor: Date, monthStartDay: number) {
+  if (mode === "semana") {
+    const { start, end } = getPeriodRange(mode, cursor, monthStartDay);
+    const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+    return `${fmt(start)} – ${fmt(end)}`;
+  }
+  if (mode === "ano") {
+    return `${cursor.getFullYear()}`;
+  }
+  return formatFinancialMonthLabel(monthStartDay, cursor);
+}
+
+export function periodStep(mode: PeriodMode, date: Date, dir: 1 | -1) {
+  if (mode === "semana") return addDays(date, dir * 7);
+  if (mode === "ano") return addMonths(date, dir * 12);
+  return addMonths(date, dir * 1);
 }

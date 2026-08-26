@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Wallet } from "lucide-react";
+import { Wallet, ChevronLeft, ChevronRight } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { useCrud } from "@/hooks/use-crud";
+import { useProfile } from "@/hooks/use-profile";
 import { CrudList } from "@/components/crud/crud-list";
 import { SplitButton } from "@/components/crud/split-button";
 import { recurrenceFields } from "@/components/crud/entity-form";
 import { createClient } from "@/lib/supabase/client";
+import { getPeriodRange, isInPeriod, formatPeriodLabel, periodStep, type PeriodMode } from "@/lib/utils";
 import { EXPENSE_CATEGORIES, type Expense, type ExpenseSplit } from "@/lib/types";
+
+const PERIOD_LABEL: Record<PeriodMode, string> = { semana: "Semana", mes: "Mês", ano: "Ano" };
 
 const FIELDS = [
   { name: "description", label: "Descrição", type: "text" as const, required: true },
@@ -43,6 +48,14 @@ export default function DespesasPage() {
     "expense_date",
     { includeShared: true }
   );
+  const { profile } = useProfile();
+  const monthStartDay = profile?.month_start_day ?? 25;
+
+  const [mode, setMode] = useState<PeriodMode>("mes");
+  const [cursor, setCursor] = useState(new Date());
+  const { start, end } = getPeriodRange(mode, cursor, monthStartDay);
+  const periodItems = items.filter((e) => isInPeriod(e.expense_date, start, end));
+  const periodSharedItems = sharedItems.filter((e) => isInPeriod(e.expense_date, start, end));
 
   const [splitsByExpense, setSplitsByExpense] = useState<Record<string, ExpenseSplit[]>>({});
 
@@ -68,24 +81,69 @@ export default function DespesasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey]);
 
-  const total = items.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const periodTotal = periodItems.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const periodLabel = formatPeriodLabel(mode, cursor, monthStartDay);
 
   return (
     <div>
       <h1 className="text-2xl font-semibold text-slate-900 mb-1">Despesas</h1>
       <p className="text-slate-500 text-sm mb-1">Controle seus gastos fixos e variáveis por categoria.</p>
-      <p className="text-sm font-mono text-brand-cyan mb-6">Total registrado: €{total.toFixed(2)}</p>
+      <p className="text-sm font-mono text-brand-cyan mb-6">Total do período: €{periodTotal.toFixed(2)}</p>
+
+      <Card className="mb-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
+            {(Object.keys(PERIOD_LABEL) as PeriodMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
+                  mode === m ? "bg-brand-blue text-white" : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {PERIOD_LABEL[m]}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-slate-700 capitalize">{periodLabel}</span>
+            <div className="flex items-center gap-1 text-slate-400">
+              <button
+                onClick={() => setCursor((c) => periodStep(mode, c, -1))}
+                className="hover:text-slate-600"
+                aria-label="Período anterior"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={() => setCursor(new Date())}
+                className="text-xs font-medium text-slate-500 hover:text-brand-blue px-1.5 py-1 rounded-md hover:bg-brand-blueSoft"
+              >
+                Hoje
+              </button>
+              <button
+                onClick={() => setCursor((c) => periodStep(mode, c, 1))}
+                className="hover:text-slate-600"
+                aria-label="Próximo período"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <CrudList
-        title="Todas as despesas"
+        title="Despesas do período"
         icon={<Wallet size={18} className="text-brand-cyan" />}
         tableName="expenses"
         currentUserId={currentUserId}
         fields={FIELDS}
-        items={items}
-        sharedItems={sharedItems}
+        items={periodItems}
+        sharedItems={periodSharedItems}
         loading={loading}
         error={error}
+        emptyMessage="Nenhuma despesa neste período."
         onCreate={create}
         onUpdate={update}
         onDelete={remove}

@@ -24,6 +24,7 @@ interface CrudListProps<T extends { id: string; user_id: string }> {
   onCreate: (values: Partial<T>) => Promise<{ error: string | null }>;
   onUpdate: (id: string, values: Partial<T>) => Promise<{ error: string | null }>;
   onDelete: (id: string) => Promise<{ error: string | null }>;
+  emptyMessage?: string;
 }
 
 // Componente de CRUD completo (listar, criar, editar, apagar, compartilhar)
@@ -43,6 +44,7 @@ export function CrudList<T extends { id: string; user_id: string }>({
   onCreate,
   onUpdate,
   onDelete,
+  emptyMessage = "Nenhum registro ainda. Adicione o primeiro.",
 }: CrudListProps<T>) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -153,7 +155,7 @@ export function CrudList<T extends { id: string; user_id: string }>({
       {loading ? (
         <p className="text-sm text-slate-400">Carregando...</p>
       ) : items.length === 0 && sharedItems.length === 0 ? (
-        <p className="text-sm text-slate-400">Nenhum registro ainda. Adicione o primeiro.</p>
+        <p className="text-sm text-slate-400">{emptyMessage}</p>
       ) : (
         <ul className="divide-y divide-slate-100">
           {items.map((item) => renderRow(item, item.user_id === currentUserId))}
