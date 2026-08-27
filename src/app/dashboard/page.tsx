@@ -1,7 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { ListChecks, BookOpen, HeartPulse, Wallet, Landmark, Gift, Waves, CalendarPlus, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  ListChecks,
+  BookOpen,
+  HeartPulse,
+  Wallet,
+  Landmark,
+  Gift,
+  Waves,
+  CalendarPlus,
+  TrendingUp,
+  TrendingDown,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -105,6 +118,7 @@ const TAB_LABEL: Record<OverviewTab, string> = { pessoal: "Visão pessoal", fina
 // Visão geral "Hoje": puxa um resumo de cada tabela via Supabase.
 export default function HojePage() {
   const [tab, setTab] = useState<OverviewTab>("pessoal");
+  const [monthOffset, setMonthOffset] = useState(0);
   const tasks = useCrud<Task>("tasks");
   const studies = useCrud<Study>("studies", "study_date");
   const expenses = useCrud<Expense>("expenses", "expense_date");
@@ -122,26 +136,41 @@ export default function HojePage() {
 
   // Despesa/receita recorrente (ex.: fixa mensal) conta no mês em que ela se
   // repete, não só no mês em que foi cadastrada — mesma lógica do calendário.
+  // `monthStart`/`monthEnd` é sempre o mês real atual (usado na Visão
+  // pessoal); a Visão financeira permite navegar para outros meses via
+  // `monthOffset`, sem afetar o mês real usado alhures.
   const { start: monthStart, end: monthEnd } = getFinancialMonthRange(monthStartDay);
+  const selectedRefDate = addMonths(new Date(), monthOffset);
+  const { start: selectedMonthStart, end: selectedMonthEnd } = getFinancialMonthRange(monthStartDay, selectedRefDate);
   const monthExpenses = expenses.items.filter((e) =>
-    occursInRange({ date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date }, monthStart, monthEnd)
+    occursInRange(
+      { date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date },
+      selectedMonthStart,
+      selectedMonthEnd
+    )
   );
   const monthExpensesTotal = monthExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
   const monthIncomeTotal = income.items.reduce((s, i) => {
     if (i.income_type === "fixo") return s + Number(i.amount || 0);
-    if (occursInRange({ date: i.income_date, recurrenceType: i.recurrence_type, recurrenceEnd: i.recurrence_end_date }, monthStart, monthEnd))
+    if (
+      occursInRange(
+        { date: i.income_date, recurrenceType: i.recurrence_type, recurrenceEnd: i.recurrence_end_date },
+        selectedMonthStart,
+        selectedMonthEnd
+      )
+    )
       return s + Number(i.amount || 0);
     return s;
   }, 0);
   const saldo = monthIncomeTotal - monthExpensesTotal;
-  const currentMonthLabel = monthEnd.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const currentMonthLabel = selectedMonthEnd.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
   // Últimos 6 meses financeiros (mesmo dia de início configurado em Perfil)
   // para o gráfico de tendência: despesas em barra, receitas em linha.
   const trendMonths = Array.from({ length: 6 }, (_, i) => {
     const offset = 5 - i;
-    const start = addMonths(monthStart, -offset);
-    const end = addMonths(monthEnd, -offset);
+    const start = addMonths(selectedMonthStart, -offset);
+    const end = addMonths(selectedMonthEnd, -offset);
     const expensesTotal = expenses.items
       .filter((e) =>
         occursInRange({ date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date }, start, end)
@@ -235,8 +264,34 @@ export default function HojePage() {
       <Card className="mb-5">
         <CardHeader>
           <CardTitle className="capitalize">{currentMonthLabel}</CardTitle>
+          <div className="flex items-center gap-3 shrink-0">
+            {monthOffset !== 0 && (
+              <button
+                onClick={() => setMonthOffset(0)}
+                className="text-xs font-medium text-slate-500 hover:text-brand-blue px-2 py-1 rounded-md hover:bg-brand-blueSoft"
+              >
+                Hoje
+              </button>
+            )}
+            <div className="flex items-center gap-1 text-slate-400">
+              <button
+                onClick={() => setMonthOffset((o) => o - 1)}
+                className="hover:text-slate-600"
+                aria-label="Mês anterior"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={() => setMonthOffset((o) => o + 1)}
+                className="hover:text-slate-600"
+                aria-label="Próximo mês"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
         </CardHeader>
-        <p className="text-xs text-slate-400 -mt-2 mb-3">Período: {formatFinancialMonthLabel(monthStartDay)}</p>
+        <p className="text-xs text-slate-400 -mt-2 mb-3">Período: {formatFinancialMonthLabel(monthStartDay, selectedRefDate)}</p>
         <div className="flex items-center gap-2">
           {saldo >= 0 ? (
             <TrendingUp size={16} className="text-brand-green" />
