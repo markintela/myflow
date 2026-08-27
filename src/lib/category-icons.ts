@@ -39,25 +39,27 @@ export const CATEGORY_ICON_BY_LABEL: Record<string, LucideIcon> = Object.fromEnt
 );
 
 // Uma cor fixa por categoria (para o gráfico "Despesas do mês por
-// categoria"). Combina as cores da marca (azul/verde/ciano/âmbar, já usadas
-// em outras partes do app) com tons planos adicionais para as demais
-// categorias. Validado com o script de acessibilidade da skill de dataviz
-// (pares adjacentes, já que é um gráfico de barras — cada barra já tem
-// ícone + rótulo de texto, então a cor nunca é o único canal de identidade).
+// categoria"), em degradê azul -> verde — o mesmo estilo do fundo do menu
+// lateral (brand-blue a brand-green) — para casar com a identidade visual
+// do site. Nenhuma dessas cores é reaproveitada nos outros gráficos do
+// dashboard. Como cada barra já mostra ícone + nome por extenso, a cor é um
+// reforço visual/de marca, não o único canal de identidade — por isso o
+// degradê prioriza casar com o site em vez de maximizar a distância entre
+// tons vizinhos (o que um degradê suave, por natureza, não permite).
 export const CATEGORY_COLOR: Record<string, string> = {
-  moradia: "#2563EB",
-  alimentacao: "#D97706",
-  transporte: "#0891B2",
-  investimentos: "#EDA100",
-  bem_estar: "#E87BA4",
-  lazer: "#16A34A",
-  educacao: "#4A3AA7",
-  saude: "#E34948",
-  aplicativos: "#0D9488",
-  seguros: "#4338CA",
-  eventos: "#92400E",
-  pessoal: "#A21CAF",
-  outros: "#4D7C0F",
+  moradia: "#0F67FF",
+  alimentacao: "#0D6DFF",
+  transporte: "#0A73F0",
+  educacao: "#0879DE",
+  lazer: "#067ECD",
+  saude: "#0384BB",
+  bem_estar: "#018AAA",
+  investimentos: "#009098",
+  pessoal: "#009687",
+  aplicativos: "#009B75",
+  seguros: "#00A164",
+  eventos: "#00A752",
+  outros: "#00AD41",
 };
 
 export const CATEGORY_COLOR_BY_LABEL: Record<string, string> = Object.fromEntries(
