@@ -43,6 +43,12 @@ export default function HojePage() {
     { name: "Despesas", value: monthExpensesTotal, color: "#269EBB" },
   ];
 
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const upcomingLeisure = leisure.items
+    .filter((l) => l.event_date >= todayStr)
+    .sort((a, b) => a.event_date.localeCompare(b.event_date));
+
   const byCategory = Object.entries(
     monthExpenses.reduce<Record<string, number>>((acc, e) => {
       acc[e.category] = (acc[e.category] ?? 0) + Number(e.amount || 0);
@@ -118,7 +124,15 @@ export default function HojePage() {
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" width={90} tickLine={false} axisLine={false} fontSize={12} />
                   <Tooltip formatter={(v) => `€${Number(v).toFixed(2)}`} />
-                  <Bar dataKey="value" fill="#269EBB" radius={[0, 4, 4, 0]} barSize={16} />
+                  <Bar dataKey="value" fill="#269EBB" radius={[0, 4, 4, 0]} barSize={16}>
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      formatter={(v) => `€${Number(v).toFixed(2)}`}
+                      className="fill-slate-600"
+                      fontSize={12}
+                    />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -179,12 +193,12 @@ export default function HojePage() {
               <Waves size={16} className="text-brand-green" />
             </div>
           </CardHeader>
-          {leisure.items.length === 0 ? (
+          {upcomingLeisure.length === 0 ? (
             <p className="text-sm text-slate-400">Nada agendado ainda.</p>
           ) : (
             <div>
-              <p className="text-sm font-medium text-slate-800">{leisure.items[0].title}</p>
-              <p className="text-xs text-slate-400 mt-1">{leisure.items[0].event_date}</p>
+              <p className="text-sm font-medium text-slate-800">{upcomingLeisure[0].title}</p>
+              <p className="text-xs text-slate-400 mt-1">{upcomingLeisure[0].event_date}</p>
             </div>
           )}
         </Card>
