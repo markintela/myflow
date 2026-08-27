@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
 import { useProfile } from "@/hooks/use-profile";
-import { isInFinancialMonth, formatFinancialMonthLabel } from "@/lib/utils";
+import { getFinancialMonthRange, formatFinancialMonthLabel, occursInRange } from "@/lib/utils";
 import { EXPENSE_CATEGORIES, type Task, type Study, type Expense, type Birthday, type LeisureEvent, type Event, type IncomeSource } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
@@ -29,11 +29,17 @@ export default function HojePage() {
   const totalExpenses = expenses.items.reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalStudyHours = studies.items.reduce((s, st) => s + Number(st.hours || 0), 0);
 
-  const monthExpenses = expenses.items.filter((e) => isInFinancialMonth(e.expense_date, monthStartDay));
+  // Despesa/receita recorrente (ex.: fixa mensal) conta no mês em que ela se
+  // repete, não só no mês em que foi cadastrada — mesma lógica do calendário.
+  const { start: monthStart, end: monthEnd } = getFinancialMonthRange(monthStartDay);
+  const monthExpenses = expenses.items.filter((e) =>
+    occursInRange({ date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date }, monthStart, monthEnd)
+  );
   const monthExpensesTotal = monthExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
   const monthIncomeTotal = income.items.reduce((s, i) => {
     if (i.income_type === "fixo") return s + Number(i.amount || 0);
-    if (isInFinancialMonth(i.income_date, monthStartDay)) return s + Number(i.amount || 0);
+    if (occursInRange({ date: i.income_date, recurrenceType: i.recurrence_type, recurrenceEnd: i.recurrence_end_date }, monthStart, monthEnd))
+      return s + Number(i.amount || 0);
     return s;
   }, 0);
   const saldo = monthIncomeTotal - monthExpensesTotal;

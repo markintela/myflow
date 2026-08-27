@@ -5,7 +5,7 @@ import { useCrud } from "@/hooks/use-crud";
 import { useProfile } from "@/hooks/use-profile";
 import { CrudList } from "@/components/crud/crud-list";
 import { recurrenceFields } from "@/components/crud/entity-form";
-import { isInFinancialMonth, formatFinancialMonthLabel } from "@/lib/utils";
+import { getFinancialMonthRange, formatFinancialMonthLabel, occursInRange } from "@/lib/utils";
 import type { IncomeSource } from "@/lib/types";
 
 const FIELDS = [
@@ -32,9 +32,11 @@ export default function RendaPage() {
   const { profile } = useProfile();
   const monthStartDay = profile?.month_start_day ?? 25;
 
+  const { start: monthStart, end: monthEnd } = getFinancialMonthRange(monthStartDay);
   const monthlyBudget = items.reduce((sum, i) => {
     if (i.income_type === "fixo") return sum + Number(i.amount || 0);
-    if (isInFinancialMonth(i.income_date, monthStartDay)) return sum + Number(i.amount || 0);
+    if (occursInRange({ date: i.income_date, recurrenceType: i.recurrence_type, recurrenceEnd: i.recurrence_end_date }, monthStart, monthEnd))
+      return sum + Number(i.amount || 0);
     return sum;
   }, 0);
 

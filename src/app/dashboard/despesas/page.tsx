@@ -10,7 +10,7 @@ import { CrudList } from "@/components/crud/crud-list";
 import { SplitButton } from "@/components/crud/split-button";
 import { recurrenceFields } from "@/components/crud/entity-form";
 import { createClient } from "@/lib/supabase/client";
-import { getPeriodRange, isInPeriod, formatPeriodLabel, periodStep, type PeriodMode } from "@/lib/utils";
+import { getPeriodRange, occursInRange, formatPeriodLabel, periodStep, type PeriodMode } from "@/lib/utils";
 import { EXPENSE_CATEGORIES, type Expense, type ExpenseSplit } from "@/lib/types";
 
 const PERIOD_LABEL: Record<PeriodMode, string> = { semana: "Semana", mes: "Mês", ano: "Ano" };
@@ -55,8 +55,14 @@ export default function DespesasPage() {
   const [mode, setMode] = useState<PeriodMode>("mes");
   const [cursor, setCursor] = useState(new Date());
   const { start, end } = getPeriodRange(mode, cursor, monthStartDay);
-  const periodItems = items.filter((e) => isInPeriod(e.expense_date, start, end));
-  const periodSharedItems = sharedItems.filter((e) => isInPeriod(e.expense_date, start, end));
+  // Despesa recorrente (ex.: fixa mensal) conta no período em que ela se
+  // repete, não só no mês em que foi cadastrada — mesma lógica do calendário.
+  const inPeriod = (e: Expense) =>
+    occursInRange({ date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date }, start, end);
+  const sortFixedFirst = (a: Expense, b: Expense) =>
+    (a.expense_type === "fixa" ? 0 : 1) - (b.expense_type === "fixa" ? 0 : 1);
+  const periodItems = items.filter(inPeriod).sort(sortFixedFirst);
+  const periodSharedItems = sharedItems.filter(inPeriod).sort(sortFixedFirst);
 
   const [splitsByExpense, setSplitsByExpense] = useState<Record<string, ExpenseSplit[]>>({});
 

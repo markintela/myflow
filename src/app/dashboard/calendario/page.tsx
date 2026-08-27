@@ -5,7 +5,16 @@ import { CalendarDays, ChevronLeft, ChevronRight, Wallet, Landmark, TrendingUp, 
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCrud } from "@/hooks/use-crud";
 import { useProfile } from "@/hooks/use-profile";
-import { getFinancialMonthRange, formatFinancialMonthLabel } from "@/lib/utils";
+import {
+  getFinancialMonthRange,
+  formatFinancialMonthLabel,
+  parseDateOnly,
+  addDays,
+  addMonths,
+  startOfWeek,
+  matchesRecurrence,
+  occursInRange,
+} from "@/lib/utils";
 import type { Task, Study, HealthLog, Expense, IncomeSource, Birthday, LeisureEvent, Event, RecurrenceType } from "@/lib/types";
 
 type CalendarEvent = {
@@ -40,57 +49,12 @@ const VIEW_LABEL: Record<ViewMode, string> = {
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MONTH_ABBR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
-// Datas do app são "YYYY-MM-DD" — parse manual evita o shift de timezone de
-// `new Date("YYYY-MM-DD")` (interpretado como UTC meia-noite pelo JS).
-function parseDateOnly(dateStr: string) {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function addDays(date: Date, days: number) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function addMonths(date: Date, months: number) {
-  const d = new Date(date);
-  d.setMonth(d.getMonth() + months);
-  return d;
-}
-
-function startOfWeek(date: Date) {
-  return addDays(date, -date.getDay());
-}
-
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
 function dateKey(d: Date) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
-// Verifica se um evento com repetição (semanal/mensal/anual) ocorre no dia
-// `d`, a partir da data original até a data de término (se houver).
-function matchesRecurrence(e: CalendarEvent, d: Date) {
-  const origin = parseDateOnly(e.date);
-  if (d < origin) return false;
-  if (e.recurrenceEnd && d > parseDateOnly(e.recurrenceEnd)) return false;
-
-  if (e.recurrenceType === "weekly") {
-    const diffDays = Math.round((d.getTime() - origin.getTime()) / 86400000);
-    return diffDays % 7 === 0;
-  }
-  if (e.recurrenceType === "monthly") {
-    const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    return d.getDate() === Math.min(origin.getDate(), daysInTargetMonth);
-  }
-  if (e.recurrenceType === "yearly") {
-    const daysInTargetMonth = new Date(d.getFullYear(), origin.getMonth() + 1, 0).getDate();
-    return d.getMonth() === origin.getMonth() && d.getDate() === Math.min(origin.getDate(), daysInTargetMonth);
-  }
-  return false;
 }
 
 // Página de calendário: agrega eventos de todas as tabelas (tarefas com
@@ -210,16 +174,13 @@ export default function CalendarioPage() {
   const financialSummary = useMemo(() => {
     if (view !== "mes") return null;
     const { start, end } = getFinancialMonthRange(monthStartDay, new Date(year, month, 1));
-    const inRange = (dateStr: string) => {
-      const d = parseDateOnly(dateStr);
-      return d >= start && d <= end;
-    };
     const totalExpenses = expenses.items
-      .filter((e) => inRange(e.expense_date))
+      .filter((e) => occursInRange({ date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date }, start, end))
       .reduce((s, e) => s + Number(e.amount || 0), 0);
     const totalIncome = income.items.reduce((s, i) => {
       if (i.income_type === "fixo") return s + Number(i.amount || 0);
-      if (inRange(i.income_date)) return s + Number(i.amount || 0);
+      if (occursInRange({ date: i.income_date, recurrenceType: i.recurrence_type, recurrenceEnd: i.recurrence_end_date }, start, end))
+        return s + Number(i.amount || 0);
       return s;
     }, 0);
     return { totalExpenses, totalIncome, saldo: totalIncome - totalExpenses };

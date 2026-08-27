@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { RecurrenceType } from "@/lib/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -40,12 +41,6 @@ export function getFinancialMonthRange(startDay: number, refDate: Date = new Dat
   const start = new Date(y, startMonth, startDay);
   const end = new Date(y, startMonth + 1, startDay - 1);
   return { start, end };
-}
-
-export function isInFinancialMonth(dateStr: string, startDay: number, refDate: Date = new Date()) {
-  const date = parseDateOnly(dateStr);
-  const { start, end } = getFinancialMonthRange(startDay, refDate);
-  return date >= start && date <= end;
 }
 
 export function formatFinancialMonthLabel(startDay: number, refDate: Date = new Date()) {
@@ -94,4 +89,49 @@ export function periodStep(mode: PeriodMode, date: Date, dir: 1 | -1) {
   if (mode === "semana") return addDays(date, dir * 7);
   if (mode === "ano") return addMonths(date, dir * 12);
   return addMonths(date, dir * 1);
+}
+
+export type RecurringItem = {
+  date: string;
+  recurrenceType: RecurrenceType;
+  recurrenceEnd: string | null;
+};
+
+// Verifica se um item com repetição (semanal/mensal/anual) ocorre no dia
+// `d`, a partir da data original até a data de término (se houver). Mesma
+// lógica usada para projetar recorrências no calendário — mantida aqui para
+// que os totais mensais (dashboard/despesas) enxerguem as mesmas ocorrências
+// que o calendário mostra.
+export function matchesRecurrence(item: RecurringItem, d: Date) {
+  const origin = parseDateOnly(item.date);
+  if (d < origin) return false;
+  if (item.recurrenceEnd && d > parseDateOnly(item.recurrenceEnd)) return false;
+
+  if (item.recurrenceType === "weekly") {
+    const diffDays = Math.round((d.getTime() - origin.getTime()) / 86400000);
+    return diffDays % 7 === 0;
+  }
+  if (item.recurrenceType === "monthly") {
+    const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    return d.getDate() === Math.min(origin.getDate(), daysInTargetMonth);
+  }
+  if (item.recurrenceType === "yearly") {
+    const daysInTargetMonth = new Date(d.getFullYear(), origin.getMonth() + 1, 0).getDate();
+    return d.getMonth() === origin.getMonth() && d.getDate() === Math.min(origin.getDate(), daysInTargetMonth);
+  }
+  return false;
+}
+
+// Um item sem repetição "ocorre" no período se sua data cair dentro dele;
+// um item recorrente ocorre no período se alguma projeção da recorrência
+// cair dentro dele (ex.: despesa fixa mensal criada em julho conta em
+// agosto, não só no mês em que foi cadastrada).
+export function occursInRange(item: RecurringItem, start: Date, end: Date) {
+  if (item.recurrenceType === "none") {
+    return isInPeriod(item.date, start, end);
+  }
+  for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
+    if (matchesRecurrence(item, d)) return true;
+  }
+  return false;
 }
