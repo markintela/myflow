@@ -21,7 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
 import { useProfile } from "@/hooks/use-profile";
 import { getFinancialMonthRange, formatFinancialMonthLabel, occursInRange, addMonths } from "@/lib/utils";
-import { CATEGORY_COLOR_BY_LABEL } from "@/lib/category-icons";
+import { CATEGORY_COLOR_BY_LABEL, CATEGORY_ICON_BY_LABEL } from "@/lib/category-icons";
 import { EXPENSE_CATEGORIES, type Task, type Study, type Expense, type Birthday, type LeisureEvent, type Event, type IncomeSource } from "@/lib/types";
 
 ChartJS.register(
@@ -156,6 +156,17 @@ export default function HojePage() {
     .map(([category, v]) => ({ name: CATEGORY_LABEL[category] ?? category, ...v, total: v.fixa + v.variavel }))
     .sort((a, b) => b.total - a.total);
 
+  const fixedByCategory = byCategoryByType
+    .filter((d) => d.fixa > 0)
+    .map((d) => ({ name: d.name, value: d.fixa }))
+    .sort((a, b) => b.value - a.value);
+  const variableByCategory = byCategoryByType
+    .filter((d) => d.variavel > 0)
+    .map((d) => ({ name: d.name, value: d.variavel }))
+    .sort((a, b) => b.value - a.value);
+  const totalFixed = fixedByCategory.reduce((s, c) => s + c.value, 0);
+  const totalVariable = variableByCategory.reduce((s, c) => s + c.value, 0);
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-slate-900 mb-1">Visão geral</h1>
@@ -218,6 +229,74 @@ export default function HojePage() {
           </CardHeader>
           <p className="text-2xl font-mono font-medium">€{totalExpenses.toFixed(2)}</p>
           <p className="text-xs text-slate-400 mt-1">total registrado</p>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        <Card>
+          <CardHeader>
+            <CardTitle>Despesas fixas</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-brand-blueSoft flex items-center justify-center">
+              <Wallet size={16} className="text-brand-blue" />
+            </div>
+          </CardHeader>
+          <p className="text-2xl font-mono font-medium text-brand-blue">€{totalFixed.toFixed(2)}</p>
+          <p className="text-xs text-slate-400 mt-1 mb-3">total fixo do mês</p>
+          {fixedByCategory.length === 0 ? (
+            <p className="text-sm text-slate-400">Nenhuma despesa fixa este mês.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {fixedByCategory.map((c) => {
+                const Icon = CATEGORY_ICON_BY_LABEL[c.name];
+                return (
+                  <li key={c.name} className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 text-slate-600">
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: CATEGORY_COLOR_BY_LABEL[c.name] }}
+                      />
+                      {Icon && <Icon size={13} />}
+                      {c.name}
+                    </span>
+                    <span className="font-mono text-slate-700">€{c.value.toFixed(2)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Despesas variáveis</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+              <Wallet size={16} className="text-amber-600" />
+            </div>
+          </CardHeader>
+          <p className="text-2xl font-mono font-medium text-amber-600">€{totalVariable.toFixed(2)}</p>
+          <p className="text-xs text-slate-400 mt-1 mb-3">total variável do mês</p>
+          {variableByCategory.length === 0 ? (
+            <p className="text-sm text-slate-400">Nenhuma despesa variável este mês.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {variableByCategory.map((c) => {
+                const Icon = CATEGORY_ICON_BY_LABEL[c.name];
+                return (
+                  <li key={c.name} className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 text-slate-600">
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: CATEGORY_COLOR_BY_LABEL[c.name] }}
+                      />
+                      {Icon && <Icon size={13} />}
+                      {c.name}
+                    </span>
+                    <span className="font-mono text-slate-700">€{c.value.toFixed(2)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </Card>
       </div>
 
