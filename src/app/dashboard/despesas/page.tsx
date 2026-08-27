@@ -280,7 +280,7 @@ export default function DespesasPage() {
                   )}
                   {e.description}
                 </p>
-                <div className="flex items-center flex-wrap gap-1.5 mt-1">
+                <div className="flex items-center flex-wrap gap-1.5 mt-0.5">
                   <Badge
                     className={
                       e.expense_type === "fixa"

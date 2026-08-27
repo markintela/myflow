@@ -61,12 +61,12 @@ export function CrudList<T extends { id: string; user_id: string }>({
   const editingItem = items.find((i) => i.id === editingId);
 
   const renderRow = (item: T, owned: boolean) => (
-    <li key={item.id} className="flex items-center justify-between py-2.5 gap-3">
+    <li key={item.id} className="flex items-center justify-between py-2 gap-2">
       <div className="min-w-0 flex-1 flex items-center gap-2">
         <div className="min-w-0 flex-1">{renderItem(item)}</div>
         {!owned && <Badge className="bg-brand-greenSoft text-brand-green shrink-0">Compartilhado</Badge>}
       </div>
-      <div className="flex gap-1 shrink-0 items-center">
+      <div className="flex gap-0.5 shrink-0 items-center">
         {renderActions?.(item)}
         {owned && <ShareButton tableName={tableName} recordId={item.id} />}
         {owned && (
@@ -165,20 +165,18 @@ export function CrudList<T extends { id: string; user_id: string }>({
       ) : items.length === 0 && sharedItems.length === 0 ? (
         <p className="text-sm text-slate-400">{emptyMessage}</p>
       ) : groupBy ? (
-        <div className="flex flex-col">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
           {groupItems(items, sharedItems, currentUserId, groupBy).map(({ key, entries }) => (
-            <div key={key} className="mb-4 last:mb-0">
+            <div key={key} className="rounded-xl border border-slate-200 p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{key}</span>
                 {groupTotal && (
-                  <span className="text-xs font-mono text-slate-400">
+                  <span className="text-xs font-mono text-slate-400 shrink-0 ml-2">
                     {groupTotal(entries.map(({ item }) => item))}
                   </span>
                 )}
               </div>
-              <ul className="divide-y divide-slate-100 border-t border-slate-100">
-                {entries.map(({ item, owned }) => renderRow(item, owned))}
-              </ul>
+              <ul className="divide-y divide-slate-100">{entries.map(({ item, owned }) => renderRow(item, owned))}</ul>
             </div>
           ))}
         </div>
