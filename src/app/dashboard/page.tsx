@@ -108,6 +108,7 @@ export default function HojePage() {
     return s;
   }, 0);
   const saldo = monthIncomeTotal - monthExpensesTotal;
+  const currentMonthLabel = monthEnd.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
   // Últimos 6 meses financeiros (mesmo dia de início configurado em Perfil)
   // para o gráfico de tendência: despesas em barra, receitas em linha.
@@ -176,6 +177,26 @@ export default function HojePage() {
 
       {tab === "financeira" && (
       <>
+      <Card className="mb-5">
+        <CardHeader>
+          <CardTitle className="capitalize">{currentMonthLabel}</CardTitle>
+        </CardHeader>
+        <p className="text-xs text-slate-400 -mt-2 mb-3">Período: {formatFinancialMonthLabel(monthStartDay)}</p>
+        <div className="flex items-center gap-2">
+          {saldo >= 0 ? (
+            <TrendingUp size={16} className="text-brand-green" />
+          ) : (
+            <TrendingDown size={16} className="text-red-500" />
+          )}
+          <p className={`text-2xl font-mono font-medium ${saldo >= 0 ? "text-brand-green" : "text-red-500"}`}>
+            €{saldo.toFixed(2)}
+          </p>
+          <span className="text-xs text-slate-400">
+            saldo {saldo >= 0 ? "positivo" : "negativo"} do mês
+          </span>
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
         <Card>
           <CardHeader>
@@ -205,20 +226,6 @@ export default function HojePage() {
           <CardHeader>
             <CardTitle>Histórico financeiro</CardTitle>
           </CardHeader>
-          <p className="text-xs text-slate-400 -mt-2 mb-3">Período: {formatFinancialMonthLabel(monthStartDay)}</p>
-          <div className="flex items-center gap-2 mb-3">
-            {saldo >= 0 ? (
-              <TrendingUp size={16} className="text-brand-green" />
-            ) : (
-              <TrendingDown size={16} className="text-red-500" />
-            )}
-            <p className={`text-2xl font-mono font-medium ${saldo >= 0 ? "text-brand-green" : "text-red-500"}`}>
-              €{saldo.toFixed(2)}
-            </p>
-            <span className="text-xs text-slate-400">
-              saldo {saldo >= 0 ? "positivo" : "negativo"} do mês
-            </span>
-          </div>
           {!hasTrendData ? (
             <p className="text-sm text-slate-400">
               Cadastre sua renda e suas despesas para acompanhar o mês.
