@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ListChecks, BookOpen, HeartPulse, Wallet, Landmark, Gift, Waves, CalendarPlus, TrendingUp, TrendingDown, type LucideIcon } from "lucide-react";
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,8 +61,12 @@ function IconAxisTick({
   );
 }
 
+type OverviewTab = "pessoal" | "financeira";
+const TAB_LABEL: Record<OverviewTab, string> = { pessoal: "Visão pessoal", financeira: "Visão financeira" };
+
 // Visão geral "Hoje": puxa um resumo de cada tabela via Supabase.
 export default function HojePage() {
+  const [tab, setTab] = useState<OverviewTab>("pessoal");
   const tasks = useCrud<Task>("tasks");
   const studies = useCrud<Study>("studies", "study_date");
   const expenses = useCrud<Expense>("expenses", "expense_date");
@@ -74,6 +79,7 @@ export default function HojePage() {
 
   const pendingTasks = tasks.items.filter((t) => !t.done);
   const totalExpenses = expenses.items.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const totalIncome = income.items.reduce((s, i) => s + Number(i.amount || 0), 0);
   const totalStudyHours = studies.items.reduce((s, st) => s + Number(st.hours || 0), 0);
 
   // Despesa/receita recorrente (ex.: fixa mensal) conta no mês em que ela se
@@ -124,8 +130,24 @@ export default function HojePage() {
   return (
     <div>
       <h1 className="text-2xl font-semibold text-slate-900 mb-1">Visão geral</h1>
-      <p className="text-slate-500 text-sm mb-6">Um resumo rápido de todas as áreas da sua vida.</p>
+      <p className="text-slate-500 text-sm mb-4">Um resumo rápido de todas as áreas da sua vida.</p>
 
+      <div className="flex items-center gap-1 mb-5">
+        {(Object.keys(TAB_LABEL) as OverviewTab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`text-sm font-medium px-3.5 py-1.5 rounded-full transition-colors ${
+              tab === t ? "bg-brand-blue text-white" : "text-slate-500 hover:bg-slate-100"
+            }`}
+          >
+            {TAB_LABEL[t]}
+          </button>
+        ))}
+      </div>
+
+      {tab === "financeira" && (
+      <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         <Card>
           <CardHeader>
@@ -271,6 +293,33 @@ export default function HojePage() {
         )}
       </Card>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <Card>
+          <CardHeader>
+            <CardTitle>Despesas</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-brand-cyanSoft flex items-center justify-center">
+              <Wallet size={16} className="text-brand-cyan" />
+            </div>
+          </CardHeader>
+          <p className="text-2xl font-mono font-medium">€{totalExpenses.toFixed(2)}</p>
+          <p className="text-xs text-slate-400 mt-1">total registrado</p>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Receitas</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-brand-greenSoft flex items-center justify-center">
+              <Landmark size={16} className="text-brand-green" />
+            </div>
+          </CardHeader>
+          <p className="text-2xl font-mono font-medium">€{totalIncome.toFixed(2)}</p>
+          <p className="text-xs text-slate-400 mt-1">total registrado</p>
+        </Card>
+      </div>
+      </>
+      )}
+
+      {tab === "pessoal" && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <Card>
           <CardHeader>
@@ -304,17 +353,6 @@ export default function HojePage() {
           </CardHeader>
           <p className="text-2xl font-mono font-medium">{totalStudyHours.toFixed(1)}h</p>
           <p className="text-xs text-slate-400 mt-1">total de horas registradas</p>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Despesas</CardTitle>
-            <div className="w-8 h-8 rounded-lg bg-brand-cyanSoft flex items-center justify-center">
-              <Wallet size={16} className="text-brand-cyan" />
-            </div>
-          </CardHeader>
-          <p className="text-2xl font-mono font-medium">€{totalExpenses.toFixed(2)}</p>
-          <p className="text-xs text-slate-400 mt-1">total registrado</p>
         </Card>
 
         <Card>
@@ -386,6 +424,7 @@ export default function HojePage() {
           </p>
         </Card>
       </div>
+      )}
     </div>
   );
 }
