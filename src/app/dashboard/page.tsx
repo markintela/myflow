@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
 import { useProfile } from "@/hooks/use-profile";
 import { getFinancialMonthRange, formatFinancialMonthLabel, occursInRange } from "@/lib/utils";
-import { CATEGORY_ICON_BY_LABEL } from "@/lib/category-icons";
+import { CATEGORY_ICON_BY_LABEL, CATEGORY_COLOR_BY_LABEL } from "@/lib/category-icons";
 import { EXPENSE_CATEGORIES, type Task, type Study, type Expense, type Birthday, type LeisureEvent, type Event, type IncomeSource } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
@@ -201,7 +201,10 @@ export default function HojePage() {
                     tick={(props: any) => <IconAxisTick {...props} width={96} icons={CATEGORY_ICON_BY_LABEL} />}
                   />
                   <Tooltip formatter={(v) => `€${Number(v).toFixed(2)}`} />
-                  <Bar dataKey="value" fill="#269EBB" radius={[0, 4, 4, 0]} barSize={16}>
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
+                    {byCategory.map((d) => (
+                      <Cell key={d.name} fill={CATEGORY_COLOR_BY_LABEL[d.name] ?? "#269EBB"} />
+                    ))}
                     <LabelList
                       dataKey="value"
                       position="right"
