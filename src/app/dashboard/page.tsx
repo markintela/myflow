@@ -15,9 +15,10 @@ const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   EXPENSE_CATEGORIES.map((c) => [c.value, c.label])
 );
 
-// Mesmas cores usadas nos badges "Fixa"/"Variável" da página de Despesas.
-const FIXED_COLOR = "#2563EB";
-const VARIABLE_COLOR = "#D97706";
+// Versões suavizadas das cores "Fixa"/"Variável" (mais fortes nos badges da
+// página de Despesas) — mais confortáveis num gráfico de barras cheio.
+const FIXED_COLOR = "#5182EF";
+const VARIABLE_COLOR = "#E19238";
 
 const AREA_ICON: Record<string, LucideIcon> = { Receitas: Landmark, Despesas: Wallet };
 
@@ -98,8 +99,8 @@ export default function HojePage() {
   const saldo = monthIncomeTotal - monthExpensesTotal;
 
   const incomeVsExpenseData = [
-    { name: "Receitas", value: monthIncomeTotal, color: "#2DAE60" },
-    { name: "Despesas", value: monthExpensesTotal, color: "#269EBB" },
+    { name: "Receitas", value: monthIncomeTotal, color: "#3AB36A" },
+    { name: "Despesas", value: monthExpensesTotal, color: "#33A4C0" },
   ];
 
   const now = new Date();
@@ -225,7 +226,7 @@ export default function HojePage() {
                   <Tooltip formatter={(v) => `€${Number(v).toFixed(2)}`} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
                     {byCategory.map((d) => (
-                      <Cell key={d.name} fill={CATEGORY_COLOR_BY_LABEL[d.name] ?? "#269EBB"} />
+                      <Cell key={d.name} fill={CATEGORY_COLOR_BY_LABEL[d.name] ?? "#33A4C0"} />
                     ))}
                     <LabelList
                       dataKey="value"

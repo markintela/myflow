@@ -47,19 +47,19 @@ export const CATEGORY_ICON_BY_LABEL: Record<string, LucideIcon> = Object.fromEnt
 // categorias vizinhas para daltonismo) — como cada barra/card já mostra
 // ícone + nome por extenso, a cor nunca é o único canal de identidade.
 export const CATEGORY_COLOR: Record<string, string> = {
-  moradia: "#4F46E5",
-  alimentacao: "#E11D48",
-  transporte: "#7C3AED",
-  educacao: "#DB2777",
-  lazer: "#CA8A04",
-  saude: "#DC2626",
-  bem_estar: "#E87BA4",
-  investimentos: "#65A30D",
-  pessoal: "#9333EA",
-  aplicativos: "#0D9488",
-  seguros: "#4338CA",
-  eventos: "#9A3412",
-  outros: "#7E22CE",
+  moradia: "#766FEB",
+  alimentacao: "#E84F70",
+  transporte: "#9965F1",
+  educacao: "#E35795",
+  lazer: "#D6A43B",
+  saude: "#E14444",
+  bem_estar: "#EC93B4",
+  investimentos: "#87B742",
+  pessoal: "#AB60EF",
+  aplicativos: "#2FA399",
+  seguros: "#6C64D6",
+  eventos: "#B06146",
+  outros: "#9A53D9",
 };
 
 export const CATEGORY_COLOR_BY_LABEL: Record<string, string> = Object.fromEntries(
