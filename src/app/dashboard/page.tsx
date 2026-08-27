@@ -13,6 +13,10 @@ const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   EXPENSE_CATEGORIES.map((c) => [c.value, c.label])
 );
 
+// Mesmas cores usadas nos badges "Fixa"/"Variável" da página de Despesas.
+const FIXED_COLOR = "#2563EB";
+const VARIABLE_COLOR = "#D97706";
+
 // Visão geral "Hoje": puxa um resumo de cada tabela via Supabase.
 export default function HojePage() {
   const tasks = useCrud<Task>("tasks");
@@ -63,6 +67,16 @@ export default function HojePage() {
   )
     .map(([category, value]) => ({ name: CATEGORY_LABEL[category] ?? category, value }))
     .sort((a, b) => b.value - a.value);
+
+  const byCategoryByType = Object.entries(
+    monthExpenses.reduce<Record<string, { fixa: number; variavel: number }>>((acc, e) => {
+      const bucket = (acc[e.category] ??= { fixa: 0, variavel: 0 });
+      bucket[e.expense_type] += Number(e.amount || 0);
+      return acc;
+    }, {})
+  )
+    .map(([category, v]) => ({ name: CATEGORY_LABEL[category] ?? category, ...v, total: v.fixa + v.variavel }))
+    .sort((a, b) => b.total - a.total);
 
   return (
     <div>
@@ -145,6 +159,50 @@ export default function HojePage() {
           )}
         </Card>
       </div>
+
+      <Card className="mb-5">
+        <CardHeader>
+          <CardTitle>Fixas vs. variáveis por categoria</CardTitle>
+        </CardHeader>
+        {byCategoryByType.length === 0 ? (
+          <p className="text-sm text-slate-400">Nenhuma despesa registrada este mês.</p>
+        ) : (
+          <>
+            <div className="flex items-center gap-4 mb-3">
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: FIXED_COLOR }} />
+                Fixas
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: VARIABLE_COLOR }} />
+                Variáveis
+              </span>
+            </div>
+            <div style={{ height: Math.max(byCategoryByType.length * 32, 80) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={byCategoryByType} layout="vertical" margin={{ left: 8, right: 24 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" width={90} tickLine={false} axisLine={false} fontSize={12} />
+                  <Tooltip
+                    formatter={(v, key) => [`€${Number(v).toFixed(2)}`, key === "fixa" ? "Fixas" : "Variáveis"]}
+                  />
+                  <Bar dataKey="fixa" name="Fixas" stackId="tipo" fill={FIXED_COLOR} stroke="#fff" strokeWidth={2} barSize={16} />
+                  <Bar
+                    dataKey="variavel"
+                    name="Variáveis"
+                    stackId="tipo"
+                    fill={VARIABLE_COLOR}
+                    stroke="#fff"
+                    strokeWidth={2}
+                    radius={[0, 4, 4, 0]}
+                    barSize={16}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <Card>
