@@ -38,28 +38,28 @@ export const CATEGORY_ICON_BY_LABEL: Record<string, LucideIcon> = Object.fromEnt
   EXPENSE_CATEGORIES.map((c) => [c.label, CATEGORY_ICON[c.value] ?? Package])
 );
 
-// Uma cor fixa por categoria (para o gráfico "Despesas do mês por
-// categoria"), em degradê azul -> verde — o mesmo estilo do fundo do menu
-// lateral (brand-blue a brand-green) — para casar com a identidade visual
-// do site. Nenhuma dessas cores é reaproveitada nos outros gráficos do
-// dashboard. Como cada barra já mostra ícone + nome por extenso, a cor é um
-// reforço visual/de marca, não o único canal de identidade — por isso o
-// degradê prioriza casar com o site em vez de maximizar a distância entre
-// tons vizinhos (o que um degradê suave, por natureza, não permite).
+// Uma cor própria e distinta por categoria (para o gráfico "Despesas do mês
+// por categoria" e para a bolinha ao lado do título de cada card na página
+// de Despesas). Nenhuma delas é reaproveitada nos outros gráficos do
+// dashboard (que usam azul/verde/ciano/âmbar para Fixas/Variáveis e
+// Receitas/Despesas). Validado com o script de acessibilidade da skill de
+// dataviz (faixa de luminosidade, saturação mínima, separação entre
+// categorias vizinhas para daltonismo) — como cada barra/card já mostra
+// ícone + nome por extenso, a cor nunca é o único canal de identidade.
 export const CATEGORY_COLOR: Record<string, string> = {
-  moradia: "#0F67FF",
-  alimentacao: "#0D6DFF",
-  transporte: "#0A73F0",
-  educacao: "#0879DE",
-  lazer: "#067ECD",
-  saude: "#0384BB",
-  bem_estar: "#018AAA",
-  investimentos: "#009098",
-  pessoal: "#009687",
-  aplicativos: "#009B75",
-  seguros: "#00A164",
-  eventos: "#00A752",
-  outros: "#00AD41",
+  moradia: "#4F46E5",
+  alimentacao: "#E11D48",
+  transporte: "#7C3AED",
+  educacao: "#DB2777",
+  lazer: "#CA8A04",
+  saude: "#DC2626",
+  bem_estar: "#E87BA4",
+  investimentos: "#65A30D",
+  pessoal: "#9333EA",
+  aplicativos: "#0D9488",
+  seguros: "#4338CA",
+  eventos: "#9A3412",
+  outros: "#7E22CE",
 };
 
 export const CATEGORY_COLOR_BY_LABEL: Record<string, string> = Object.fromEntries(

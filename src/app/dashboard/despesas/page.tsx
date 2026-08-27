@@ -11,7 +11,7 @@ import { SplitButton } from "@/components/crud/split-button";
 import { recurrenceFields } from "@/components/crud/entity-form";
 import { createClient } from "@/lib/supabase/client";
 import { getPeriodRange, occursInRange, formatPeriodLabel, periodStep, type PeriodMode } from "@/lib/utils";
-import { CATEGORY_ICON, CATEGORY_ICON_BY_LABEL } from "@/lib/category-icons";
+import { CATEGORY_ICON, CATEGORY_ICON_BY_LABEL, CATEGORY_COLOR_BY_LABEL } from "@/lib/category-icons";
 import { EXPENSE_CATEGORIES, type Expense, type ExpenseSplit } from "@/lib/types";
 
 const PERIOD_LABEL: Record<PeriodMode, string> = { semana: "Semana", mes: "Mês", ano: "Ano" };
@@ -261,7 +261,13 @@ export default function DespesasPage() {
           view === "categoria"
             ? (label) => {
                 const Icon = CATEGORY_ICON_BY_LABEL[label] ?? Package;
-                return <Icon size={15} />;
+                const color = CATEGORY_COLOR_BY_LABEL[label] ?? "#94A3B8";
+                return (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                    <Icon size={15} />
+                  </span>
+                );
               }
             : undefined
         }
