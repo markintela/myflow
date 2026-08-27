@@ -20,7 +20,15 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
 import { useProfile } from "@/hooks/use-profile";
-import { getFinancialMonthRange, formatFinancialMonthLabel, occursInRange, addMonths } from "@/lib/utils";
+import {
+  getFinancialMonthRange,
+  formatFinancialMonthLabel,
+  occursInRange,
+  addMonths,
+  addDays,
+  parseDateOnly,
+  matchesRecurrence,
+} from "@/lib/utils";
 import { CATEGORY_COLOR_BY_LABEL, CATEGORY_ICON_BY_LABEL } from "@/lib/category-icons";
 import { EXPENSE_CATEGORIES, type Task, type Study, type Expense, type Birthday, type LeisureEvent, type Event, type IncomeSource } from "@/lib/types";
 
@@ -72,6 +80,24 @@ const verticalBarLabelsPlugin: Plugin<"bar"> = {
     });
   },
 };
+
+// Acha a data real de ocorrência de uma despesa (recorrente ou não) dentro
+// de um intervalo — ex.: uma despesa fixa mensal criada em janeiro "ocorre"
+// em outro dia dentro do mês atual, não no dia original de cadastro.
+function occurrenceDateInRange(
+  item: { date: string; recurrenceType: Expense["recurrence_type"]; recurrenceEnd: string | null },
+  start: Date,
+  end: Date
+): Date | null {
+  if (item.recurrenceType === "none") {
+    const d = parseDateOnly(item.date);
+    return d >= start && d <= end ? d : null;
+  }
+  for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
+    if (matchesRecurrence(item, d)) return new Date(d);
+  }
+  return null;
+}
 
 type OverviewTab = "pessoal" | "financeira";
 const TAB_LABEL: Record<OverviewTab, string> = { pessoal: "Visão pessoal", financeira: "Visão financeira" };
@@ -136,6 +162,24 @@ export default function HojePage() {
   const upcomingLeisure = leisure.items
     .filter((l) => l.event_date >= todayStr)
     .sort((a, b) => a.event_date.localeCompare(b.event_date));
+
+  // Despesas fixas do mês: já vencidas (data <= hoje) vs. ainda a pagar,
+  // considerando a data real de ocorrência (recorrência projetada).
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const fixedExpensesThisMonth = expenses.items
+    .filter((e) => e.expense_type === "fixa")
+    .map((e) => ({
+      expense: e,
+      date: occurrenceDateInRange(
+        { date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date },
+        monthStart,
+        monthEnd
+      ),
+    }))
+    .filter((x): x is { expense: Expense; date: Date } => x.date !== null)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  const paidFixedExpenses = fixedExpensesThisMonth.filter((x) => x.date <= today);
+  const upcomingFixedExpenses = fixedExpensesThisMonth.filter((x) => x.date > today);
 
   const byCategory = Object.entries(
     monthExpenses.reduce<Record<string, number>>((acc, e) => {
@@ -647,6 +691,54 @@ export default function HojePage() {
           <p className="text-sm text-slate-500">
             Registre água, sono e exercício na aba <span className="font-medium text-slate-700">Saúde</span>.
           </p>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Despesas fixas pagas</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-brand-greenSoft flex items-center justify-center">
+              <Wallet size={16} className="text-brand-green" />
+            </div>
+          </CardHeader>
+          {paidFixedExpenses.length === 0 ? (
+            <p className="text-sm text-slate-400">Nenhuma despesa fixa vencida este mês ainda.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {paidFixedExpenses.map(({ expense, date }) => (
+                <li key={expense.id} className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm text-slate-700 truncate">{expense.description}</p>
+                    <p className="text-xs text-slate-400">{date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</p>
+                  </div>
+                  <span className="text-sm font-mono text-slate-600 shrink-0">€{Number(expense.amount).toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Despesas fixas a pagar</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+              <Wallet size={16} className="text-amber-600" />
+            </div>
+          </CardHeader>
+          {upcomingFixedExpenses.length === 0 ? (
+            <p className="text-sm text-slate-400">Nenhuma despesa fixa pendente este mês.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {upcomingFixedExpenses.map(({ expense, date }) => (
+                <li key={expense.id} className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm text-slate-700 truncate">{expense.description}</p>
+                    <p className="text-xs text-slate-400">{date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</p>
+                  </div>
+                  <span className="text-sm font-mono text-slate-600 shrink-0">€{Number(expense.amount).toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
       )}
