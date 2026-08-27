@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { ListChecks, BookOpen, HeartPulse, Wallet, Landmark, Gift, Waves, CalendarPlus, TrendingUp, TrendingDown, type LucideIcon } from "lucide-react";
-import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ListChecks, BookOpen, HeartPulse, Wallet, Landmark, Gift, Waves, CalendarPlus, TrendingUp, TrendingDown } from "lucide-react";
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Legend, type ChartOptions, type Plugin } from "chart.js";
+import { Bar } from "react-chartjs-2";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
 import { useProfile } from "@/hooks/use-profile";
 import { getFinancialMonthRange, formatFinancialMonthLabel, occursInRange } from "@/lib/utils";
-import { CATEGORY_ICON_BY_LABEL, CATEGORY_COLOR_BY_LABEL } from "@/lib/category-icons";
+import { CATEGORY_COLOR_BY_LABEL } from "@/lib/category-icons";
 import { EXPENSE_CATEGORIES, type Task, type Study, type Expense, type Birthday, type LeisureEvent, type Event, type IncomeSource } from "@/lib/types";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   EXPENSE_CATEGORIES.map((c) => [c.value, c.label])
@@ -20,46 +23,59 @@ const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
 const FIXED_COLOR = "#5182EF";
 const VARIABLE_COLOR = "#E19238";
 
-const AREA_ICON: Record<string, LucideIcon> = { Receitas: Landmark, Despesas: Wallet };
+// Desenha o valor (€) ao lado de cada barra — Chart.js não tem isso pronto
+// como o LabelList do Recharts, então um plugin pequeno resolve.
+const valueLabelsPlugin: Plugin<"bar"> = {
+  id: "valueLabels",
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (meta.hidden) return;
+      meta.data.forEach((bar, index) => {
+        const value = dataset.data[index];
+        if (value == null) return;
+        ctx.save();
+        ctx.fillStyle = "#475569";
+        ctx.font = "12px system-ui, -apple-system, sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`€${Number(value).toFixed(2)}`, bar.x + 6, bar.y);
+        ctx.restore();
+      });
+    });
+  },
+};
 
-// Tick customizado do eixo Y dos gráficos: ícone + rótulo, em vez de só
-// texto. `foreignObject` deixa renderizar o ícone lucide (React normal)
-// dentro do SVG do Recharts.
-function IconAxisTick({
-  x,
-  y,
-  width,
-  payload,
-  icons,
-}: {
-  x: number;
-  y: number;
-  width: number;
-  payload: { value: string };
-  icons: Record<string, LucideIcon>;
-}) {
-  const label = payload.value;
-  const Icon = icons[label];
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <foreignObject x={-width} y={-9} width={width} height={18}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4, height: "100%" }}>
-          {Icon && <Icon size={12} color="#64748b" />}
-          <span
-            style={{
-              fontSize: 12,
-              color: "#64748b",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {label}
-          </span>
-        </div>
-      </foreignObject>
-    </g>
-  );
+function barOptions(stacked = false): ChartOptions<"bar"> {
+  return {
+    indexAxis: "y",
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#fff",
+        titleColor: "#0f172a",
+        bodyColor: "#334155",
+        borderColor: "#e2e8f0",
+        borderWidth: 1,
+        padding: 8,
+        callbacks: {
+          label: (ctx) => `${ctx.dataset.label ? ctx.dataset.label + ": " : ""}€${Number(ctx.parsed.x).toFixed(2)}`,
+        },
+      },
+    },
+    scales: {
+      x: { display: false, stacked, grid: { display: false } },
+      y: {
+        stacked,
+        grid: { display: false },
+        border: { display: false },
+        ticks: { color: "#64748b", font: { size: 12 } },
+      },
+    },
+  };
 }
 
 type OverviewTab = "pessoal" | "financeira";
@@ -174,32 +190,21 @@ export default function HojePage() {
             </p>
           ) : (
             <div className="h-40">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={incomeVsExpenseData} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <XAxis type="number" hide />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={80}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={(props: any) => <IconAxisTick {...props} width={76} icons={AREA_ICON} />}
-                  />
-                  <Tooltip formatter={(v) => `€${Number(v).toFixed(2)}`} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
-                    {incomeVsExpenseData.map((d) => (
-                      <Cell key={d.name} fill={d.color} />
-                    ))}
-                    <LabelList
-                      dataKey="value"
-                      position="right"
-                      formatter={(v) => `€${Number(v).toFixed(2)}`}
-                      className="fill-slate-600"
-                      fontSize={12}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <Bar
+                data={{
+                  labels: incomeVsExpenseData.map((d) => d.name),
+                  datasets: [
+                    {
+                      data: incomeVsExpenseData.map((d) => d.value),
+                      backgroundColor: incomeVsExpenseData.map((d) => d.color),
+                      borderRadius: 4,
+                      barThickness: 24,
+                    },
+                  ],
+                }}
+                options={barOptions()}
+                plugins={[valueLabelsPlugin]}
+              />
             </div>
           )}
         </Card>
@@ -212,32 +217,21 @@ export default function HojePage() {
             <p className="text-sm text-slate-400">Nenhuma despesa registrada este mês.</p>
           ) : (
             <div style={{ height: Math.max(byCategory.length * 32, 80) }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byCategory} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <XAxis type="number" hide />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={100}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={(props: any) => <IconAxisTick {...props} width={96} icons={CATEGORY_ICON_BY_LABEL} />}
-                  />
-                  <Tooltip formatter={(v) => `€${Number(v).toFixed(2)}`} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
-                    {byCategory.map((d) => (
-                      <Cell key={d.name} fill={CATEGORY_COLOR_BY_LABEL[d.name] ?? "#33A4C0"} />
-                    ))}
-                    <LabelList
-                      dataKey="value"
-                      position="right"
-                      formatter={(v) => `€${Number(v).toFixed(2)}`}
-                      className="fill-slate-600"
-                      fontSize={12}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <Bar
+                data={{
+                  labels: byCategory.map((d) => d.name),
+                  datasets: [
+                    {
+                      data: byCategory.map((d) => d.value),
+                      backgroundColor: byCategory.map((d) => CATEGORY_COLOR_BY_LABEL[d.name] ?? "#33A4C0"),
+                      borderRadius: 4,
+                      barThickness: 16,
+                    },
+                  ],
+                }}
+                options={barOptions()}
+                plugins={[valueLabelsPlugin]}
+              />
             </div>
           )}
         </Card>
@@ -262,33 +256,33 @@ export default function HojePage() {
               </span>
             </div>
             <div style={{ height: Math.max(byCategoryByType.length * 32, 80) }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byCategoryByType} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <XAxis type="number" hide />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={100}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={(props: any) => <IconAxisTick {...props} width={96} icons={CATEGORY_ICON_BY_LABEL} />}
-                  />
-                  <Tooltip
-                    formatter={(v, key) => [`€${Number(v).toFixed(2)}`, key === "fixa" ? "Fixas" : "Variáveis"]}
-                  />
-                  <Bar dataKey="fixa" name="Fixas" stackId="tipo" fill={FIXED_COLOR} stroke="#fff" strokeWidth={2} barSize={16} />
-                  <Bar
-                    dataKey="variavel"
-                    name="Variáveis"
-                    stackId="tipo"
-                    fill={VARIABLE_COLOR}
-                    stroke="#fff"
-                    strokeWidth={2}
-                    radius={[0, 4, 4, 0]}
-                    barSize={16}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              <Bar
+                data={{
+                  labels: byCategoryByType.map((d) => d.name),
+                  datasets: [
+                    {
+                      label: "Fixas",
+                      data: byCategoryByType.map((d) => d.fixa),
+                      backgroundColor: FIXED_COLOR,
+                      stack: "tipo",
+                      borderColor: "#fff",
+                      borderWidth: 2,
+                      barThickness: 16,
+                    },
+                    {
+                      label: "Variáveis",
+                      data: byCategoryByType.map((d) => d.variavel),
+                      backgroundColor: VARIABLE_COLOR,
+                      stack: "tipo",
+                      borderColor: "#fff",
+                      borderWidth: 2,
+                      borderRadius: { topRight: 4, bottomRight: 4 },
+                      barThickness: 16,
+                    },
+                  ],
+                }}
+                options={barOptions(true)}
+              />
             </div>
           </>
         )}
