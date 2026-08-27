@@ -13,10 +13,9 @@ import {
   LineController,
   Tooltip,
   Legend,
-  type ChartOptions,
   type Plugin,
 } from "chart.js";
-import { Bar, Chart, Line } from "react-chartjs-2";
+import { Chart, Line } from "react-chartjs-2";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
@@ -51,32 +50,10 @@ const VARIABLE_COLOR = "#E19238";
 // mais (útil também em escala de cinza / impressão).
 const POINT_STYLES = ["circle", "rect", "triangle", "star", "rectRot", "crossRot"] as const;
 
-// Desenha o valor (€) ao lado de cada barra — Chart.js não tem isso pronto
-// como o LabelList do Recharts, então um plugin pequeno resolve.
-const valueLabelsPlugin: Plugin<"bar"> = {
-  id: "valueLabels",
-  afterDatasetsDraw(chart) {
-    const { ctx } = chart;
-    chart.data.datasets.forEach((dataset, datasetIndex) => {
-      const meta = chart.getDatasetMeta(datasetIndex);
-      if (meta.hidden) return;
-      meta.data.forEach((bar, index) => {
-        const value = dataset.data[index];
-        if (value == null) return;
-        ctx.save();
-        ctx.fillStyle = "#475569";
-        ctx.font = "12px system-ui, -apple-system, sans-serif";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.fillText(`€${Number(value).toFixed(2)}`, bar.x + 6, bar.y);
-        ctx.restore();
-      });
-    });
-  },
-};
-
-// Mesma ideia, mas para barras verticais (o gráfico de tendência mensal) —
-// desenha o valor só acima das barras (dataset 0), não da linha.
+// Desenha o valor (€) acima de cada barra — Chart.js não tem isso pronto
+// como o LabelList do Recharts, então um plugin pequeno resolve. Usado só
+// no gráfico de tendência mensal (barras verticais, dataset 0); os outros
+// dois gráficos viraram linha e usam o tooltip pra mostrar o valor.
 const verticalBarLabelsPlugin: Plugin<"bar"> = {
   id: "verticalBarLabels",
   afterDatasetsDraw(chart) {
@@ -95,37 +72,6 @@ const verticalBarLabelsPlugin: Plugin<"bar"> = {
     });
   },
 };
-
-function barOptions(stacked = false): ChartOptions<"bar"> {
-  return {
-    indexAxis: "y",
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: "#fff",
-        titleColor: "#0f172a",
-        bodyColor: "#334155",
-        borderColor: "#e2e8f0",
-        borderWidth: 1,
-        padding: 8,
-        callbacks: {
-          label: (ctx) => `${ctx.dataset.label ? ctx.dataset.label + ": " : ""}€${Number(ctx.parsed.x).toFixed(2)}`,
-        },
-      },
-    },
-    scales: {
-      x: { display: false, stacked, grid: { display: false } },
-      y: {
-        stacked,
-        grid: { display: false },
-        border: { display: false },
-        ticks: { color: "#64748b", font: { size: 12 } },
-      },
-    },
-  };
-}
 
 type OverviewTab = "pessoal" | "financeira";
 const TAB_LABEL: Record<OverviewTab, string> = { pessoal: "Visão pessoal", financeira: "Visão financeira" };
@@ -230,10 +176,34 @@ export default function HojePage() {
 
       {tab === "financeira" && (
       <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+        <Card>
+          <CardHeader>
+            <CardTitle>Despesas</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-brand-cyanSoft flex items-center justify-center">
+              <Wallet size={16} className="text-brand-cyan" />
+            </div>
+          </CardHeader>
+          <p className="text-2xl font-mono font-medium">€{totalExpenses.toFixed(2)}</p>
+          <p className="text-xs text-slate-400 mt-1">total registrado</p>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Receitas</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-brand-greenSoft flex items-center justify-center">
+              <Landmark size={16} className="text-brand-green" />
+            </div>
+          </CardHeader>
+          <p className="text-2xl font-mono font-medium">€{totalIncome.toFixed(2)}</p>
+          <p className="text-xs text-slate-400 mt-1">total registrado</p>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         <Card>
           <CardHeader>
-            <CardTitle>Saúde financeira do mês</CardTitle>
+            <CardTitle>Histórico financeiro</CardTitle>
           </CardHeader>
           <p className="text-xs text-slate-400 -mt-2 mb-3">Período: {formatFinancialMonthLabel(monthStartDay)}</p>
           <div className="flex items-center gap-2 mb-3">
@@ -407,62 +377,84 @@ export default function HojePage() {
                 Variáveis
               </span>
             </div>
-            <div style={{ height: Math.max(byCategoryByType.length * 32, 80) }}>
-              <Bar
+            <div className="h-64">
+              <Line
                 data={{
                   labels: byCategoryByType.map((d) => d.name),
                   datasets: [
                     {
                       label: "Fixas",
                       data: byCategoryByType.map((d) => d.fixa),
+                      yAxisID: "y",
+                      borderColor: FIXED_COLOR,
                       backgroundColor: FIXED_COLOR,
-                      stack: "tipo",
-                      borderColor: "#fff",
-                      borderWidth: 2,
-                      barThickness: 16,
+                      pointBackgroundColor: FIXED_COLOR,
+                      pointRadius: 4,
+                      pointHoverRadius: 6,
+                      tension: 0.3,
+                      fill: false,
                     },
                     {
                       label: "Variáveis",
                       data: byCategoryByType.map((d) => d.variavel),
+                      yAxisID: "y1",
+                      borderColor: VARIABLE_COLOR,
                       backgroundColor: VARIABLE_COLOR,
-                      stack: "tipo",
-                      borderColor: "#fff",
-                      borderWidth: 2,
-                      borderRadius: { topRight: 4, bottomRight: 4 },
-                      barThickness: 16,
+                      pointBackgroundColor: VARIABLE_COLOR,
+                      pointRadius: 4,
+                      pointHoverRadius: 6,
+                      tension: 0.3,
+                      fill: false,
                     },
                   ],
                 }}
-                options={barOptions(true)}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: { mode: "index", intersect: false },
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: "#fff",
+                      titleColor: "#0f172a",
+                      bodyColor: "#334155",
+                      borderColor: "#e2e8f0",
+                      borderWidth: 1,
+                      padding: 8,
+                      callbacks: {
+                        label: (ctx) => `${ctx.dataset.label}: €${Number(ctx.parsed.y).toFixed(2)}`,
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: { display: false },
+                      border: { display: false },
+                      ticks: { color: "#64748b", font: { size: 11 }, maxRotation: 45, minRotation: 45 },
+                    },
+                    y: {
+                      type: "linear",
+                      display: true,
+                      position: "left",
+                      grid: { display: false },
+                      border: { display: false },
+                      ticks: { color: FIXED_COLOR, font: { size: 11 } },
+                    },
+                    y1: {
+                      type: "linear",
+                      display: true,
+                      position: "right",
+                      grid: { drawOnChartArea: false },
+                      border: { display: false },
+                      ticks: { color: VARIABLE_COLOR, font: { size: 11 } },
+                    },
+                  },
+                }}
               />
             </div>
           </>
         )}
       </Card>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <Card>
-          <CardHeader>
-            <CardTitle>Despesas</CardTitle>
-            <div className="w-8 h-8 rounded-lg bg-brand-cyanSoft flex items-center justify-center">
-              <Wallet size={16} className="text-brand-cyan" />
-            </div>
-          </CardHeader>
-          <p className="text-2xl font-mono font-medium">€{totalExpenses.toFixed(2)}</p>
-          <p className="text-xs text-slate-400 mt-1">total registrado</p>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Receitas</CardTitle>
-            <div className="w-8 h-8 rounded-lg bg-brand-greenSoft flex items-center justify-center">
-              <Landmark size={16} className="text-brand-green" />
-            </div>
-          </CardHeader>
-          <p className="text-2xl font-mono font-medium">€{totalIncome.toFixed(2)}</p>
-          <p className="text-xs text-slate-400 mt-1">total registrado</p>
-        </Card>
-      </div>
       </>
       )}
 
