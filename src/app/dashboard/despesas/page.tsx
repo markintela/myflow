@@ -15,6 +15,8 @@ import { EXPENSE_CATEGORIES, type Expense, type ExpenseSplit } from "@/lib/types
 
 const PERIOD_LABEL: Record<PeriodMode, string> = { semana: "Semana", mes: "Mês", ano: "Ano" };
 
+type ViewMode = "categoria" | "lista";
+
 const FIELDS = [
   { name: "description", label: "Descrição", type: "text" as const, required: true },
   { name: "amount", label: "Valor (€)", type: "number" as const, required: true },
@@ -43,6 +45,25 @@ const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   EXPENSE_CATEGORIES.map((c) => [c.value, c.label])
 );
 
+// Apps conhecidos reconhecidos pelo nome na descrição (categoria
+// "aplicativos") — mostra o favicon do serviço ao lado do item.
+const KNOWN_APPS: { name: string; domain: string }[] = [
+  { name: "glovo", domain: "glovoapp.com" },
+  { name: "globoplay", domain: "globoplay.globo.com" },
+  { name: "instagram", domain: "instagram.com" },
+  { name: "facebook", domain: "facebook.com" },
+  { name: "spotify", domain: "spotify.com" },
+  { name: "youtube", domain: "youtube.com" },
+  { name: "distrokid", domain: "distrokid.com" },
+  { name: "google cloud", domain: "cloud.google.com" },
+  { name: "claude", domain: "claude.ai" },
+];
+
+function matchAppDomain(description: string) {
+  const text = description.toLowerCase();
+  return KNOWN_APPS.find((a) => text.includes(a.name))?.domain ?? null;
+}
+
 export default function DespesasPage() {
   const { items, sharedItems, currentUserId, loading, error, create, update, remove } = useCrud<Expense>(
     "expenses",
@@ -54,15 +75,41 @@ export default function DespesasPage() {
 
   const [mode, setMode] = useState<PeriodMode>("mes");
   const [cursor, setCursor] = useState(new Date());
+  const [view, setView] = useState<ViewMode>("categoria");
+  const [categoryFilter, setCategoryFilter] = useState("todas");
+
   const { start, end } = getPeriodRange(mode, cursor, monthStartDay);
   // Despesa recorrente (ex.: fixa mensal) conta no período em que ela se
   // repete, não só no mês em que foi cadastrada — mesma lógica do calendário.
   const inPeriod = (e: Expense) =>
-    occursInRange({ date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date }, start, end);
+    occursInRange({ date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date }, start, end) &&
+    (categoryFilter === "todas" || e.category === categoryFilter);
   const sortFixedFirst = (a: Expense, b: Expense) =>
     (a.expense_type === "fixa" ? 0 : 1) - (b.expense_type === "fixa" ? 0 : 1);
-  const periodItems = items.filter(inPeriod).sort(sortFixedFirst);
-  const periodSharedItems = sharedItems.filter(inPeriod).sort(sortFixedFirst);
+
+  const rawPeriodItems = items.filter(inPeriod);
+  const rawPeriodSharedItems = sharedItems.filter(inPeriod);
+
+  // Na visão "por categoria" as seções seguem a categoria com maior gasto
+  // primeiro, pra deixar clara a separação entre categorias.
+  const categoryOrder = Object.entries(
+    [...rawPeriodItems, ...rawPeriodSharedItems].reduce<Record<string, number>>((acc, e) => {
+      acc[e.category] = (acc[e.category] ?? 0) + Number(e.amount || 0);
+      return acc;
+    }, {})
+  )
+    .sort((a, b) => b[1] - a[1])
+    .map(([category]) => category);
+  const sortByView = (a: Expense, b: Expense) => {
+    if (view === "categoria") {
+      const catDiff = categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
+      if (catDiff !== 0) return catDiff;
+    }
+    return sortFixedFirst(a, b);
+  };
+
+  const periodItems = [...rawPeriodItems].sort(sortByView);
+  const periodSharedItems = [...rawPeriodSharedItems].sort(sortByView);
 
   const [splitsByExpense, setSplitsByExpense] = useState<Record<string, ExpenseSplit[]>>({});
 
@@ -154,6 +201,37 @@ export default function DespesasPage() {
             </div>
           </div>
         </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-slate-100">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue"
+          >
+            <option value="todas">Todas as categorias</option>
+            {EXPENSE_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center gap-1">
+            {([
+              ["categoria", "Por categoria"],
+              ["lista", "Lista"],
+            ] as [ViewMode, string][]).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
+                  view === v ? "bg-brand-blue text-white" : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </Card>
 
       <CrudList
@@ -170,6 +248,12 @@ export default function DespesasPage() {
         onCreate={create}
         onUpdate={update}
         onDelete={remove}
+        groupBy={view === "categoria" ? (e) => CATEGORY_LABEL[e.category] ?? e.category : undefined}
+        groupTotal={
+          view === "categoria"
+            ? (group) => `€${group.reduce((s, e) => s + Number(e.amount || 0), 0).toFixed(2)}`
+            : undefined
+        }
         renderActions={(e) =>
           e.user_id === currentUserId ? (
             <SplitButton expenseId={e.id} onChange={() => fetchSplits(allIds)} />
@@ -178,10 +262,24 @@ export default function DespesasPage() {
         renderItem={(e) => {
           const splits = splitsByExpense[e.id];
           const mine = splits?.find((s) => s.user_id === currentUserId);
+          const appDomain = e.category === "aplicativos" ? matchAppDomain(e.description) : null;
           return (
             <div className="flex justify-between w-full pr-2">
               <div>
-                <p className="text-sm text-slate-800 font-medium">{e.description}</p>
+                <p className="text-sm text-slate-800 font-medium flex items-center gap-1.5">
+                  {appDomain && (
+                    <img
+                      src={`https://www.google.com/s2/favicons?sz=64&domain=${appDomain}`}
+                      alt=""
+                      className="w-4 h-4 rounded-sm shrink-0"
+                      referrerPolicy="no-referrer"
+                      onError={(ev) => {
+                        ev.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
+                  {e.description}
+                </p>
                 <div className="flex items-center flex-wrap gap-1.5 mt-1">
                   <Badge
                     className={
@@ -193,7 +291,8 @@ export default function DespesasPage() {
                     {e.expense_type === "fixa" ? "Fixa" : "Variável"}
                   </Badge>
                   <span className="text-xs text-slate-400">
-                    {CATEGORY_LABEL[e.category] ?? e.category} · {e.expense_date}
+                    {view === "lista" && `${CATEGORY_LABEL[e.category] ?? e.category} · `}
+                    {e.expense_date}
                   </span>
                 </div>
                 {splits && splits.length > 0 && (

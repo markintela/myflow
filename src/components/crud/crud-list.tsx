@@ -25,6 +25,12 @@ interface CrudListProps<T extends { id: string; user_id: string }> {
   onUpdate: (id: string, values: Partial<T>) => Promise<{ error: string | null }>;
   onDelete: (id: string) => Promise<{ error: string | null }>;
   emptyMessage?: string;
+  // Quando informado, os itens são separados em seções por esse rótulo (ex.:
+  // categoria) em vez de uma lista só — cada seção com cabeçalho e, opcionalmente,
+  // um total (groupTotal). A ordem das seções segue a primeira ocorrência de
+  // cada rótulo nos itens (então o chamador controla a ordem pré-ordenando).
+  groupBy?: (item: T) => string;
+  groupTotal?: (items: T[]) => React.ReactNode;
 }
 
 // Componente de CRUD completo (listar, criar, editar, apagar, compartilhar)
@@ -45,6 +51,8 @@ export function CrudList<T extends { id: string; user_id: string }>({
   onUpdate,
   onDelete,
   emptyMessage = "Nenhum registro ainda. Adicione o primeiro.",
+  groupBy,
+  groupTotal,
 }: CrudListProps<T>) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -156,6 +164,24 @@ export function CrudList<T extends { id: string; user_id: string }>({
         <p className="text-sm text-slate-400">Carregando...</p>
       ) : items.length === 0 && sharedItems.length === 0 ? (
         <p className="text-sm text-slate-400">{emptyMessage}</p>
+      ) : groupBy ? (
+        <div className="flex flex-col">
+          {groupItems(items, sharedItems, currentUserId, groupBy).map(({ key, entries }) => (
+            <div key={key} className="mb-4 last:mb-0">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{key}</span>
+                {groupTotal && (
+                  <span className="text-xs font-mono text-slate-400">
+                    {groupTotal(entries.map(({ item }) => item))}
+                  </span>
+                )}
+              </div>
+              <ul className="divide-y divide-slate-100 border-t border-slate-100">
+                {entries.map(({ item, owned }) => renderRow(item, owned))}
+              </ul>
+            </div>
+          ))}
+        </div>
       ) : (
         <ul className="divide-y divide-slate-100">
           {items.map((item) => renderRow(item, item.user_id === currentUserId))}
@@ -164,4 +190,27 @@ export function CrudList<T extends { id: string; user_id: string }>({
       )}
     </Card>
   );
+}
+
+function groupItems<T extends { id: string; user_id: string }>(
+  items: T[],
+  sharedItems: T[],
+  currentUserId: string | null,
+  groupBy: (item: T) => string
+) {
+  const combined = [
+    ...items.map((item) => ({ item, owned: item.user_id === currentUserId })),
+    ...sharedItems.map((item) => ({ item, owned: false })),
+  ];
+  const order: string[] = [];
+  const byKey = new Map<string, { item: T; owned: boolean }[]>();
+  for (const entry of combined) {
+    const key = groupBy(entry.item);
+    if (!byKey.has(key)) {
+      byKey.set(key, []);
+      order.push(key);
+    }
+    byKey.get(key)!.push(entry);
+  }
+  return order.map((key) => ({ key, entries: byKey.get(key)! }));
 }
