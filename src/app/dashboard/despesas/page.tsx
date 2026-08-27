@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Wallet, ChevronLeft, ChevronRight } from "lucide-react";
+import { Wallet, ChevronLeft, ChevronRight, Package } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useCrud } from "@/hooks/use-crud";
@@ -11,6 +11,7 @@ import { SplitButton } from "@/components/crud/split-button";
 import { recurrenceFields } from "@/components/crud/entity-form";
 import { createClient } from "@/lib/supabase/client";
 import { getPeriodRange, occursInRange, formatPeriodLabel, periodStep, type PeriodMode } from "@/lib/utils";
+import { CATEGORY_ICON, CATEGORY_ICON_BY_LABEL } from "@/lib/category-icons";
 import { EXPENSE_CATEGORIES, type Expense, type ExpenseSplit } from "@/lib/types";
 
 const PERIOD_LABEL: Record<PeriodMode, string> = { semana: "Semana", mes: "Mês", ano: "Ano" };
@@ -148,13 +149,15 @@ export default function DespesasPage() {
     <div>
       <h1 className="text-2xl font-semibold text-slate-900 mb-1">Despesas</h1>
       <p className="text-slate-500 text-sm mb-3">Controle seus gastos fixos e variáveis por categoria.</p>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mb-6 text-sm font-mono">
-        <span className="text-brand-cyan">Total do período: €{periodTotal.toFixed(2)}</span>
-        <span className="inline-flex items-center gap-1.5 text-brand-blue">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mb-6">
+        <span className="text-lg font-mono font-bold text-brand-cyan">
+          Total do período: €{periodTotal.toFixed(2)}
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-sm font-mono font-medium text-brand-blue">
           <span className="w-2 h-2 rounded-full bg-brand-blue shrink-0" />
           Fixas: €{periodFixedTotal.toFixed(2)}
         </span>
-        <span className="inline-flex items-center gap-1.5 text-amber-600">
+        <span className="inline-flex items-center gap-1.5 text-sm font-mono font-medium text-amber-600">
           <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
           Variáveis: €{periodVariableTotal.toFixed(2)}
         </span>
@@ -254,6 +257,14 @@ export default function DespesasPage() {
             ? (group) => `€${group.reduce((s, e) => s + Number(e.amount || 0), 0).toFixed(2)}`
             : undefined
         }
+        groupIcon={
+          view === "categoria"
+            ? (label) => {
+                const Icon = CATEGORY_ICON_BY_LABEL[label] ?? Package;
+                return <Icon size={15} />;
+              }
+            : undefined
+        }
         renderActions={(e) =>
           e.user_id === currentUserId ? (
             <SplitButton expenseId={e.id} onChange={() => fetchSplits(allIds)} />
@@ -290,10 +301,16 @@ export default function DespesasPage() {
                   >
                     {e.expense_type === "fixa" ? "Fixa" : "Variável"}
                   </Badge>
-                  <span className="text-xs text-slate-400">
-                    {view === "lista" && `${CATEGORY_LABEL[e.category] ?? e.category} · `}
-                    {e.expense_date}
-                  </span>
+                  {view === "lista" && (
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                      {(() => {
+                        const Icon = CATEGORY_ICON[e.category] ?? Package;
+                        return <Icon size={12} />;
+                      })()}
+                      {CATEGORY_LABEL[e.category] ?? e.category}
+                    </span>
+                  )}
+                  <span className="text-xs text-slate-400">{view === "lista" && "· "}{e.expense_date}</span>
                 </div>
                 {splits && splits.length > 0 && (
                   <p className="text-xs text-brand-cyan mt-0.5">

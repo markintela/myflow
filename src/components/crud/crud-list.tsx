@@ -31,6 +31,7 @@ interface CrudListProps<T extends { id: string; user_id: string }> {
   // cada rótulo nos itens (então o chamador controla a ordem pré-ordenando).
   groupBy?: (item: T) => string;
   groupTotal?: (items: T[]) => React.ReactNode;
+  groupIcon?: (key: string) => React.ReactNode;
 }
 
 // Componente de CRUD completo (listar, criar, editar, apagar, compartilhar)
@@ -53,6 +54,7 @@ export function CrudList<T extends { id: string; user_id: string }>({
   emptyMessage = "Nenhum registro ainda. Adicione o primeiro.",
   groupBy,
   groupTotal,
+  groupIcon,
 }: CrudListProps<T>) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -168,10 +170,13 @@ export function CrudList<T extends { id: string; user_id: string }>({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
           {groupItems(items, sharedItems, currentUserId, groupBy).map(({ key, entries }) => (
             <div key={key} className="rounded-xl border border-slate-200 p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{key}</span>
+              <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-100">
+                <span className="flex items-center gap-1.5 min-w-0 text-sm font-bold text-slate-800 uppercase tracking-wide">
+                  {groupIcon && <span className="shrink-0 text-slate-500">{groupIcon(key)}</span>}
+                  <span className="truncate">{key}</span>
+                </span>
                 {groupTotal && (
-                  <span className="text-xs font-mono text-slate-400 shrink-0 ml-2">
+                  <span className="text-sm font-mono font-bold text-slate-800 shrink-0">
                     {groupTotal(entries.map(({ item }) => item))}
                   </span>
                 )}

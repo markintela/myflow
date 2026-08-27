@@ -1,12 +1,13 @@
 "use client";
 
-import { ListChecks, BookOpen, HeartPulse, Wallet, Gift, Waves, CalendarPlus, TrendingUp, TrendingDown } from "lucide-react";
+import { ListChecks, BookOpen, HeartPulse, Wallet, Landmark, Gift, Waves, CalendarPlus, TrendingUp, TrendingDown, type LucideIcon } from "lucide-react";
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
 import { useProfile } from "@/hooks/use-profile";
 import { getFinancialMonthRange, formatFinancialMonthLabel, occursInRange } from "@/lib/utils";
+import { CATEGORY_ICON_BY_LABEL } from "@/lib/category-icons";
 import { EXPENSE_CATEGORIES, type Task, type Study, type Expense, type Birthday, type LeisureEvent, type Event, type IncomeSource } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
@@ -16,6 +17,48 @@ const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
 // Mesmas cores usadas nos badges "Fixa"/"Variável" da página de Despesas.
 const FIXED_COLOR = "#2563EB";
 const VARIABLE_COLOR = "#D97706";
+
+const AREA_ICON: Record<string, LucideIcon> = { Receitas: Landmark, Despesas: Wallet };
+
+// Tick customizado do eixo Y dos gráficos: ícone + rótulo, em vez de só
+// texto. `foreignObject` deixa renderizar o ícone lucide (React normal)
+// dentro do SVG do Recharts.
+function IconAxisTick({
+  x,
+  y,
+  width,
+  payload,
+  icons,
+}: {
+  x: number;
+  y: number;
+  width: number;
+  payload: { value: string };
+  icons: Record<string, LucideIcon>;
+}) {
+  const label = payload.value;
+  const Icon = icons[label];
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <foreignObject x={-width} y={-9} width={width} height={18}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4, height: "100%" }}>
+          {Icon && <Icon size={12} color="#64748b" />}
+          <span
+            style={{
+              fontSize: 12,
+              color: "#64748b",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {label}
+          </span>
+        </div>
+      </foreignObject>
+    </g>
+  );
+}
 
 // Visão geral "Hoje": puxa um resumo de cada tabela via Supabase.
 export default function HojePage() {
@@ -111,7 +154,14 @@ export default function HojePage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={incomeVsExpenseData} layout="vertical" margin={{ left: 8, right: 24 }}>
                   <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" width={70} tickLine={false} axisLine={false} fontSize={12} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={80}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={(props: any) => <IconAxisTick {...props} width={76} icons={AREA_ICON} />}
+                  />
                   <Tooltip formatter={(v) => `€${Number(v).toFixed(2)}`} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
                     {incomeVsExpenseData.map((d) => (
@@ -142,7 +192,14 @@ export default function HojePage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byCategory} layout="vertical" margin={{ left: 8, right: 24 }}>
                   <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" width={90} tickLine={false} axisLine={false} fontSize={12} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={100}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={(props: any) => <IconAxisTick {...props} width={96} icons={CATEGORY_ICON_BY_LABEL} />}
+                  />
                   <Tooltip formatter={(v) => `€${Number(v).toFixed(2)}`} />
                   <Bar dataKey="value" fill="#269EBB" radius={[0, 4, 4, 0]} barSize={16}>
                     <LabelList
@@ -182,7 +239,14 @@ export default function HojePage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byCategoryByType} layout="vertical" margin={{ left: 8, right: 24 }}>
                   <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" width={90} tickLine={false} axisLine={false} fontSize={12} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={100}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={(props: any) => <IconAxisTick {...props} width={96} icons={CATEGORY_ICON_BY_LABEL} />}
+                  />
                   <Tooltip
                     formatter={(v, key) => [`€${Number(v).toFixed(2)}`, key === "fixa" ? "Fixas" : "Variáveis"]}
                   />
