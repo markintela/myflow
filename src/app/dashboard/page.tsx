@@ -200,23 +200,23 @@ export default function HojePage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
         <Card>
           <CardHeader>
-            <CardTitle>Despesas</CardTitle>
-            <div className="w-8 h-8 rounded-lg bg-brand-cyanSoft flex items-center justify-center">
-              <Wallet size={16} className="text-brand-cyan" />
-            </div>
-          </CardHeader>
-          <p className="text-2xl font-mono font-medium">€{totalExpenses.toFixed(2)}</p>
-          <p className="text-xs text-slate-400 mt-1">total registrado</p>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle>Receitas</CardTitle>
             <div className="w-8 h-8 rounded-lg bg-brand-greenSoft flex items-center justify-center">
               <Landmark size={16} className="text-brand-green" />
             </div>
           </CardHeader>
           <p className="text-2xl font-mono font-medium">€{totalIncome.toFixed(2)}</p>
+          <p className="text-xs text-slate-400 mt-1">total registrado</p>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Despesas</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-brand-cyanSoft flex items-center justify-center">
+              <Wallet size={16} className="text-brand-cyan" />
+            </div>
+          </CardHeader>
+          <p className="text-2xl font-mono font-medium">€{totalExpenses.toFixed(2)}</p>
           <p className="text-xs text-slate-400 mt-1">total registrado</p>
         </Card>
       </div>
