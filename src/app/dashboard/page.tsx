@@ -16,7 +16,7 @@ import {
   type ChartOptions,
   type Plugin,
 } from "chart.js";
-import { Bar, Chart } from "react-chartjs-2";
+import { Bar, Chart, Line } from "react-chartjs-2";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
@@ -45,6 +45,11 @@ const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
 // página de Despesas) — mais confortáveis num gráfico de barras cheio.
 const FIXED_COLOR = "#5182EF";
 const VARIABLE_COLOR = "#E19238";
+
+// Formas de ponto alternadas no gráfico de despesas por categoria — cada
+// categoria já tem sua própria cor, o formato ajuda a diferenciar ainda
+// mais (útil também em escala de cinza / impressão).
+const POINT_STYLES = ["circle", "rect", "triangle", "star", "rectRot", "crossRot"] as const;
 
 // Desenha o valor (€) ao lado de cada barra — Chart.js não tem isso pronto
 // como o LabelList do Recharts, então um plugin pequeno resolve.
@@ -331,21 +336,53 @@ export default function HojePage() {
           {byCategory.length === 0 ? (
             <p className="text-sm text-slate-400">Nenhuma despesa registrada este mês.</p>
           ) : (
-            <div style={{ height: Math.max(byCategory.length * 32, 80) }}>
-              <Bar
+            <div className="h-64">
+              <Line
                 data={{
                   labels: byCategory.map((d) => d.name),
                   datasets: [
                     {
+                      label: "Despesas",
                       data: byCategory.map((d) => d.value),
+                      borderColor: "#cbd5e1",
                       backgroundColor: byCategory.map((d) => CATEGORY_COLOR_BY_LABEL[d.name] ?? "#33A4C0"),
-                      borderRadius: 4,
-                      barThickness: 16,
+                      pointBackgroundColor: byCategory.map((d) => CATEGORY_COLOR_BY_LABEL[d.name] ?? "#33A4C0"),
+                      pointBorderColor: byCategory.map((d) => CATEGORY_COLOR_BY_LABEL[d.name] ?? "#33A4C0"),
+                      pointStyle: byCategory.map((_, i) => POINT_STYLES[i % POINT_STYLES.length]),
+                      pointRadius: 6,
+                      pointHoverRadius: 8,
+                      borderWidth: 1.5,
+                      tension: 0.3,
+                      fill: false,
                     },
                   ],
                 }}
-                options={barOptions()}
-                plugins={[valueLabelsPlugin]}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: "#fff",
+                      titleColor: "#0f172a",
+                      bodyColor: "#334155",
+                      borderColor: "#e2e8f0",
+                      borderWidth: 1,
+                      padding: 8,
+                      callbacks: {
+                        label: (ctx) => `€${Number(ctx.parsed.y).toFixed(2)}`,
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: { display: false },
+                      border: { display: false },
+                      ticks: { color: "#64748b", font: { size: 11 }, maxRotation: 45, minRotation: 45 },
+                    },
+                    y: { display: false, grid: { display: false } },
+                  },
+                }}
               />
             </div>
           )}
