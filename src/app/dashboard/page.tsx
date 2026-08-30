@@ -15,20 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  BarController,
-  LineController,
-  Tooltip,
-  Legend,
-  type Plugin,
-} from "chart.js";
-import { Chart, Line } from "react-chartjs-2";
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, BarController, Tooltip, Legend } from "chart.js";
+import { Bar } from "react-chartjs-2";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
@@ -45,54 +33,11 @@ import {
 import { CATEGORY_COLOR_BY_LABEL, CATEGORY_ICON_BY_LABEL } from "@/lib/category-icons";
 import { EXPENSE_CATEGORIES, type Task, type Study, type Expense, type Birthday, type LeisureEvent, type Event, type IncomeSource } from "@/lib/types";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  BarController,
-  LineController,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, BarController, Tooltip, Legend);
 
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   EXPENSE_CATEGORIES.map((c) => [c.value, c.label])
 );
-
-// Versões suavizadas das cores "Fixa"/"Variável" (mais fortes nos badges da
-// página de Despesas) — mais confortáveis num gráfico de barras cheio.
-const FIXED_COLOR = "#5182EF";
-const VARIABLE_COLOR = "#E19238";
-
-// Formas de ponto alternadas no gráfico de despesas por categoria — cada
-// categoria já tem sua própria cor, o formato ajuda a diferenciar ainda
-// mais (útil também em escala de cinza / impressão).
-const POINT_STYLES = ["circle", "rect", "triangle", "star", "rectRot", "crossRot"] as const;
-
-// Desenha o valor (€) acima de cada barra — Chart.js não tem isso pronto
-// como o LabelList do Recharts, então um plugin pequeno resolve. Usado só
-// no gráfico de tendência mensal (barras verticais, dataset 0); os outros
-// dois gráficos viraram linha e usam o tooltip pra mostrar o valor.
-const verticalBarLabelsPlugin: Plugin<"bar"> = {
-  id: "verticalBarLabels",
-  afterDatasetsDraw(chart) {
-    const { ctx } = chart;
-    const meta = chart.getDatasetMeta(0);
-    meta.data.forEach((bar, index) => {
-      const value = chart.data.datasets[0].data[index];
-      if (value == null) return;
-      ctx.save();
-      ctx.fillStyle = "#475569";
-      ctx.font = "11px system-ui, -apple-system, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "bottom";
-      ctx.fillText(`€${Number(value).toFixed(0)}`, bar.x, bar.y - 4);
-      ctx.restore();
-    });
-  },
-};
 
 // Acha a data real de ocorrência de uma despesa (recorrente ou não) dentro
 // de um intervalo — ex.: uma despesa fixa mensal criada em janeiro "ocorre"
@@ -165,27 +110,6 @@ export default function HojePage() {
   const saldo = monthIncomeTotal - monthExpensesTotal;
   const currentMonthLabel = selectedMonthEnd.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-  // Últimos 6 meses financeiros (mesmo dia de início configurado em Perfil)
-  // para o gráfico de tendência: despesas em barra, receitas em linha.
-  const trendMonths = Array.from({ length: 6 }, (_, i) => {
-    const offset = 5 - i;
-    const start = addMonths(selectedMonthStart, -offset);
-    const end = addMonths(selectedMonthEnd, -offset);
-    const expensesTotal = expenses.items
-      .filter((e) =>
-        occursInRange({ date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date }, start, end)
-      )
-      .reduce((s, e) => s + Number(e.amount || 0), 0);
-    const incomeTotal = income.items.reduce((s, inc) => {
-      if (inc.income_type === "fixo") return s + Number(inc.amount || 0);
-      if (occursInRange({ date: inc.income_date, recurrenceType: inc.recurrence_type, recurrenceEnd: inc.recurrence_end_date }, start, end))
-        return s + Number(inc.amount || 0);
-      return s;
-    }, 0);
-    return { label: end.toLocaleDateString("pt-BR", { month: "short" }), expensesTotal, incomeTotal };
-  });
-  const hasTrendData = trendMonths.some((m) => m.expensesTotal > 0 || m.incomeTotal > 0);
-
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const upcomingLeisure = leisure.items
@@ -209,15 +133,6 @@ export default function HojePage() {
     .sort((a, b) => a.date.getTime() - b.date.getTime());
   const paidFixedExpenses = fixedExpensesThisMonth.filter((x) => x.date <= today);
   const upcomingFixedExpenses = fixedExpensesThisMonth.filter((x) => x.date > today);
-
-  const byCategory = Object.entries(
-    monthExpenses.reduce<Record<string, number>>((acc, e) => {
-      acc[e.category] = (acc[e.category] ?? 0) + Number(e.amount || 0);
-      return acc;
-    }, {})
-  )
-    .map(([category, value]) => ({ name: CATEGORY_LABEL[category] ?? category, value }))
-    .sort((a, b) => b.value - a.value);
 
   const byCategoryByType = Object.entries(
     monthExpenses.reduce<Record<string, { fixa: number; variavel: number }>>((acc, e) => {
@@ -304,6 +219,48 @@ export default function HojePage() {
           <span className="text-xs text-slate-400">
             saldo {saldo >= 0 ? "positivo" : "negativo"} do mês
           </span>
+        </div>
+        <div className="h-16 mt-3">
+          <Bar
+            data={{
+              labels: ["Receitas", "Despesas"],
+              datasets: [
+                {
+                  data: [monthIncomeTotal, monthExpensesTotal],
+                  backgroundColor: ["#3AB36A", "#33A4C0"],
+                  borderRadius: 4,
+                  barThickness: 14,
+                },
+              ],
+            }}
+            options={{
+              indexAxis: "y",
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  backgroundColor: "#fff",
+                  titleColor: "#0f172a",
+                  bodyColor: "#334155",
+                  borderColor: "#e2e8f0",
+                  borderWidth: 1,
+                  padding: 8,
+                  callbacks: {
+                    label: (ctx) => `€${Number(ctx.parsed.x).toFixed(2)}`,
+                  },
+                },
+              },
+              scales: {
+                x: { display: false, grid: { display: false } },
+                y: {
+                  grid: { display: false },
+                  border: { display: false },
+                  ticks: { color: "#64748b", font: { size: 11 } },
+                },
+              },
+            }}
+          />
         </div>
       </Card>
 
@@ -398,248 +355,6 @@ export default function HojePage() {
           )}
         </Card>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico financeiro</CardTitle>
-          </CardHeader>
-          {!hasTrendData ? (
-            <p className="text-sm text-slate-400">
-              Cadastre sua renda e suas despesas para acompanhar o mês.
-            </p>
-          ) : (
-            <>
-              <div className="flex items-center gap-4 mb-2">
-                <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                  <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "#33A4C0" }} />
-                  Despesas
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                  <span className="w-2.5 h-0.5 rounded-full shrink-0" style={{ background: "#3AB36A" }} />
-                  Receitas
-                </span>
-              </div>
-              <div className="h-48">
-                <Chart
-                  type="bar"
-                  data={{
-                    labels: trendMonths.map((m) => m.label),
-                    datasets: [
-                      {
-                        type: "bar" as const,
-                        label: "Despesas",
-                        data: trendMonths.map((m) => m.expensesTotal),
-                        backgroundColor: "#33A4C0",
-                        borderRadius: 4,
-                        barThickness: 20,
-                        order: 2,
-                      },
-                      {
-                        type: "line" as const,
-                        label: "Receitas",
-                        data: trendMonths.map((m) => m.incomeTotal),
-                        borderColor: "#3AB36A",
-                        backgroundColor: "#3AB36A",
-                        pointBackgroundColor: "#3AB36A",
-                        pointRadius: 4,
-                        pointHoverRadius: 5,
-                        tension: 0.3,
-                        fill: false,
-                        order: 1,
-                      },
-                    ],
-                  }}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: "index", intersect: false },
-                    plugins: {
-                      legend: { display: false },
-                      tooltip: {
-                        backgroundColor: "#fff",
-                        titleColor: "#0f172a",
-                        bodyColor: "#334155",
-                        borderColor: "#e2e8f0",
-                        borderWidth: 1,
-                        padding: 8,
-                        callbacks: {
-                          label: (ctx) => `${ctx.dataset.label}: €${Number(ctx.parsed.y).toFixed(2)}`,
-                        },
-                      },
-                    },
-                    scales: {
-                      x: {
-                        grid: { display: false },
-                        border: { display: false },
-                        ticks: { color: "#64748b", font: { size: 12 } },
-                      },
-                      y: { display: false, grid: { display: false } },
-                    },
-                  }}
-                  plugins={[verticalBarLabelsPlugin]}
-                />
-              </div>
-            </>
-          )}
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Despesas do mês por categoria</CardTitle>
-          </CardHeader>
-          {byCategory.length === 0 ? (
-            <p className="text-sm text-slate-400">Nenhuma despesa registrada este mês.</p>
-          ) : (
-            <div className="h-64">
-              <Line
-                data={{
-                  labels: byCategory.map((d) => d.name),
-                  datasets: [
-                    {
-                      label: "Despesas",
-                      data: byCategory.map((d) => d.value),
-                      borderColor: "#cbd5e1",
-                      backgroundColor: byCategory.map((d) => CATEGORY_COLOR_BY_LABEL[d.name] ?? "#33A4C0"),
-                      pointBackgroundColor: byCategory.map((d) => CATEGORY_COLOR_BY_LABEL[d.name] ?? "#33A4C0"),
-                      pointBorderColor: byCategory.map((d) => CATEGORY_COLOR_BY_LABEL[d.name] ?? "#33A4C0"),
-                      pointStyle: byCategory.map((_, i) => POINT_STYLES[i % POINT_STYLES.length]),
-                      pointRadius: 6,
-                      pointHoverRadius: 8,
-                      borderWidth: 1.5,
-                      tension: 0.3,
-                      fill: false,
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      backgroundColor: "#fff",
-                      titleColor: "#0f172a",
-                      bodyColor: "#334155",
-                      borderColor: "#e2e8f0",
-                      borderWidth: 1,
-                      padding: 8,
-                      callbacks: {
-                        label: (ctx) => `€${Number(ctx.parsed.y).toFixed(2)}`,
-                      },
-                    },
-                  },
-                  scales: {
-                    x: {
-                      grid: { display: false },
-                      border: { display: false },
-                      ticks: { color: "#64748b", font: { size: 11 }, maxRotation: 45, minRotation: 45 },
-                    },
-                    y: { display: false, grid: { display: false } },
-                  },
-                }}
-              />
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <Card className="mb-5">
-        <CardHeader>
-          <CardTitle>Fixas vs. variáveis por categoria</CardTitle>
-        </CardHeader>
-        {byCategoryByType.length === 0 ? (
-          <p className="text-sm text-slate-400">Nenhuma despesa registrada este mês.</p>
-        ) : (
-          <>
-            <div className="flex items-center gap-4 mb-3">
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: FIXED_COLOR }} />
-                Fixas
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: VARIABLE_COLOR }} />
-                Variáveis
-              </span>
-            </div>
-            <div className="h-64">
-              <Line
-                data={{
-                  labels: byCategoryByType.map((d) => d.name),
-                  datasets: [
-                    {
-                      label: "Fixas",
-                      data: byCategoryByType.map((d) => d.fixa),
-                      yAxisID: "y",
-                      borderColor: FIXED_COLOR,
-                      backgroundColor: FIXED_COLOR,
-                      pointBackgroundColor: FIXED_COLOR,
-                      pointRadius: 4,
-                      pointHoverRadius: 6,
-                      tension: 0.3,
-                      fill: false,
-                    },
-                    {
-                      label: "Variáveis",
-                      data: byCategoryByType.map((d) => d.variavel),
-                      yAxisID: "y1",
-                      borderColor: VARIABLE_COLOR,
-                      backgroundColor: VARIABLE_COLOR,
-                      pointBackgroundColor: VARIABLE_COLOR,
-                      pointRadius: 4,
-                      pointHoverRadius: 6,
-                      tension: 0.3,
-                      fill: false,
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  interaction: { mode: "index", intersect: false },
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      backgroundColor: "#fff",
-                      titleColor: "#0f172a",
-                      bodyColor: "#334155",
-                      borderColor: "#e2e8f0",
-                      borderWidth: 1,
-                      padding: 8,
-                      callbacks: {
-                        label: (ctx) => `${ctx.dataset.label}: €${Number(ctx.parsed.y).toFixed(2)}`,
-                      },
-                    },
-                  },
-                  scales: {
-                    x: {
-                      grid: { display: false },
-                      border: { display: false },
-                      ticks: { color: "#64748b", font: { size: 11 }, maxRotation: 45, minRotation: 45 },
-                    },
-                    y: {
-                      type: "linear",
-                      display: true,
-                      position: "left",
-                      grid: { display: false },
-                      border: { display: false },
-                      ticks: { color: FIXED_COLOR, font: { size: 11 } },
-                    },
-                    y1: {
-                      type: "linear",
-                      display: true,
-                      position: "right",
-                      grid: { drawOnChartArea: false },
-                      border: { display: false },
-                      ticks: { color: VARIABLE_COLOR, font: { size: 11 } },
-                    },
-                  },
-                }}
-              />
-            </div>
-          </>
-        )}
-      </Card>
       </>
       )}
 
