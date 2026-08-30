@@ -152,7 +152,7 @@ export default function HojePage() {
     return s;
   }, 0);
   const saldo = monthIncomeTotal - monthExpensesTotal;
-  const currentMonthLabel = selectedMonthEnd.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const currentMonthLabel = `${selectedMonthEnd.toLocaleDateString("pt-BR", { month: "long" })} ${selectedMonthEnd.getFullYear()}`;
 
   // Últimos 12 meses financeiros (mesmo dia de início configurado em Perfil,
   // terminando no mês selecionado) para o gráfico de tendência: despesas em
@@ -330,90 +330,6 @@ export default function HojePage() {
         </div>
       </Card>
 
-      <Card className="mb-5">
-        <CardHeader>
-          <CardTitle>Histórico financeiro</CardTitle>
-        </CardHeader>
-        {!hasTrendData ? (
-          <p className="text-sm text-slate-400">
-            Cadastre sua renda e suas despesas para acompanhar o mês.
-          </p>
-        ) : (
-          <>
-            <div className="flex items-center gap-4 mb-2">
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "#33A4C0" }} />
-                Despesas
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                <span className="w-2.5 h-0.5 rounded-full shrink-0" style={{ background: "#3AB36A" }} />
-                Receitas
-              </span>
-            </div>
-            <div className="h-48">
-              <Chart
-                type="bar"
-                data={{
-                  labels: trendMonths.map((m) => m.label),
-                  datasets: [
-                    {
-                      type: "bar" as const,
-                      label: "Despesas",
-                      data: trendMonths.map((m) => m.expensesTotal),
-                      backgroundColor: "#33A4C0",
-                      borderRadius: 4,
-                      barThickness: 14,
-                      order: 2,
-                    },
-                    {
-                      type: "line" as const,
-                      label: "Receitas",
-                      data: trendMonths.map((m) => m.incomeTotal),
-                      borderColor: "#3AB36A",
-                      backgroundColor: "#3AB36A",
-                      pointBackgroundColor: "#3AB36A",
-                      pointRadius: 3,
-                      pointHoverRadius: 5,
-                      tension: 0.3,
-                      fill: false,
-                      order: 1,
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  interaction: { mode: "index", intersect: false },
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      backgroundColor: "#fff",
-                      titleColor: "#0f172a",
-                      bodyColor: "#334155",
-                      borderColor: "#e2e8f0",
-                      borderWidth: 1,
-                      padding: 8,
-                      callbacks: {
-                        label: (ctx) => `${ctx.dataset.label}: €${Number(ctx.parsed.y).toFixed(2)}`,
-                      },
-                    },
-                  },
-                  scales: {
-                    x: {
-                      grid: { display: false },
-                      border: { display: false },
-                      ticks: { color: "#64748b", font: { size: 11 } },
-                    },
-                    y: { display: false, grid: { display: false } },
-                  },
-                }}
-                plugins={[verticalBarLabelsPlugin]}
-              />
-            </div>
-          </>
-        )}
-      </Card>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
         <Card>
           <CardHeader>
@@ -505,6 +421,90 @@ export default function HojePage() {
           )}
         </Card>
       </div>
+
+      <Card className="mb-5">
+        <CardHeader>
+          <CardTitle>Histórico financeiro</CardTitle>
+        </CardHeader>
+        {!hasTrendData ? (
+          <p className="text-sm text-slate-400">
+            Cadastre sua renda e suas despesas para acompanhar o mês.
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center gap-4 mb-2">
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "#33A4C0" }} />
+                Despesas
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                <span className="w-2.5 h-0.5 rounded-full shrink-0" style={{ background: "#3AB36A" }} />
+                Receitas
+              </span>
+            </div>
+            <div className="h-48">
+              <Chart
+                type="bar"
+                data={{
+                  labels: trendMonths.map((m) => m.label),
+                  datasets: [
+                    {
+                      type: "bar" as const,
+                      label: "Despesas",
+                      data: trendMonths.map((m) => m.expensesTotal),
+                      backgroundColor: "#33A4C0",
+                      borderRadius: 4,
+                      barThickness: 14,
+                      order: 2,
+                    },
+                    {
+                      type: "line" as const,
+                      label: "Receitas",
+                      data: trendMonths.map((m) => m.incomeTotal),
+                      borderColor: "#3AB36A",
+                      backgroundColor: "#3AB36A",
+                      pointBackgroundColor: "#3AB36A",
+                      pointRadius: 3,
+                      pointHoverRadius: 5,
+                      tension: 0.3,
+                      fill: false,
+                      order: 1,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: { mode: "index", intersect: false },
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: "#fff",
+                      titleColor: "#0f172a",
+                      bodyColor: "#334155",
+                      borderColor: "#e2e8f0",
+                      borderWidth: 1,
+                      padding: 8,
+                      callbacks: {
+                        label: (ctx) => `${ctx.dataset.label}: €${Number(ctx.parsed.y).toFixed(2)}`,
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: { display: false },
+                      border: { display: false },
+                      ticks: { color: "#64748b", font: { size: 11 } },
+                    },
+                    y: { display: false, grid: { display: false } },
+                  },
+                }}
+                plugins={[verticalBarLabelsPlugin]}
+              />
+            </div>
+          </>
+        )}
+      </Card>
       </>
       )}
 
