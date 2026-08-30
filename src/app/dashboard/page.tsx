@@ -15,8 +15,20 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, BarController, Tooltip, Legend } from "chart.js";
-import { Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  BarController,
+  LineController,
+  Tooltip,
+  Legend,
+  type Plugin,
+} from "chart.js";
+import { Bar, Chart } from "react-chartjs-2";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/hooks/use-crud";
@@ -33,11 +45,43 @@ import {
 import { CATEGORY_COLOR_BY_LABEL, CATEGORY_ICON_BY_LABEL } from "@/lib/category-icons";
 import { EXPENSE_CATEGORIES, type Task, type Study, type Expense, type Birthday, type LeisureEvent, type Event, type IncomeSource } from "@/lib/types";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, BarController, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  BarController,
+  LineController,
+  Tooltip,
+  Legend
+);
 
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   EXPENSE_CATEGORIES.map((c) => [c.value, c.label])
 );
+
+// Desenha o valor (€) acima de cada barra — Chart.js não tem isso pronto
+// como o LabelList do Recharts, então um plugin pequeno resolve. Usado só
+// no gráfico de tendência mensal (barras verticais, dataset 0).
+const verticalBarLabelsPlugin: Plugin<"bar"> = {
+  id: "verticalBarLabels",
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    const meta = chart.getDatasetMeta(0);
+    meta.data.forEach((bar, index) => {
+      const value = chart.data.datasets[0].data[index];
+      if (value == null) return;
+      ctx.save();
+      ctx.fillStyle = "#475569";
+      ctx.font = "11px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(`€${Number(value).toFixed(0)}`, bar.x, bar.y - 4);
+      ctx.restore();
+    });
+  },
+};
 
 // Acha a data real de ocorrência de uma despesa (recorrente ou não) dentro
 // de um intervalo — ex.: uma despesa fixa mensal criada em janeiro "ocorre"
@@ -109,6 +153,28 @@ export default function HojePage() {
   }, 0);
   const saldo = monthIncomeTotal - monthExpensesTotal;
   const currentMonthLabel = selectedMonthEnd.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  // Últimos 12 meses financeiros (mesmo dia de início configurado em Perfil,
+  // terminando no mês selecionado) para o gráfico de tendência: despesas em
+  // barra, receitas em linha.
+  const trendMonths = Array.from({ length: 12 }, (_, i) => {
+    const offset = 11 - i;
+    const start = addMonths(selectedMonthStart, -offset);
+    const end = addMonths(selectedMonthEnd, -offset);
+    const expensesTotal = expenses.items
+      .filter((e) =>
+        occursInRange({ date: e.expense_date, recurrenceType: e.recurrence_type, recurrenceEnd: e.recurrence_end_date }, start, end)
+      )
+      .reduce((s, e) => s + Number(e.amount || 0), 0);
+    const incomeTotal = income.items.reduce((s, inc) => {
+      if (inc.income_type === "fixo") return s + Number(inc.amount || 0);
+      if (occursInRange({ date: inc.income_date, recurrenceType: inc.recurrence_type, recurrenceEnd: inc.recurrence_end_date }, start, end))
+        return s + Number(inc.amount || 0);
+      return s;
+    }, 0);
+    return { label: end.toLocaleDateString("pt-BR", { month: "short" }), expensesTotal, incomeTotal };
+  });
+  const hasTrendData = trendMonths.some((m) => m.expensesTotal > 0 || m.incomeTotal > 0);
 
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -262,6 +328,90 @@ export default function HojePage() {
             }}
           />
         </div>
+      </Card>
+
+      <Card className="mb-5">
+        <CardHeader>
+          <CardTitle>Histórico financeiro</CardTitle>
+        </CardHeader>
+        {!hasTrendData ? (
+          <p className="text-sm text-slate-400">
+            Cadastre sua renda e suas despesas para acompanhar o mês.
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center gap-4 mb-2">
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "#33A4C0" }} />
+                Despesas
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                <span className="w-2.5 h-0.5 rounded-full shrink-0" style={{ background: "#3AB36A" }} />
+                Receitas
+              </span>
+            </div>
+            <div className="h-48">
+              <Chart
+                type="bar"
+                data={{
+                  labels: trendMonths.map((m) => m.label),
+                  datasets: [
+                    {
+                      type: "bar" as const,
+                      label: "Despesas",
+                      data: trendMonths.map((m) => m.expensesTotal),
+                      backgroundColor: "#33A4C0",
+                      borderRadius: 4,
+                      barThickness: 14,
+                      order: 2,
+                    },
+                    {
+                      type: "line" as const,
+                      label: "Receitas",
+                      data: trendMonths.map((m) => m.incomeTotal),
+                      borderColor: "#3AB36A",
+                      backgroundColor: "#3AB36A",
+                      pointBackgroundColor: "#3AB36A",
+                      pointRadius: 3,
+                      pointHoverRadius: 5,
+                      tension: 0.3,
+                      fill: false,
+                      order: 1,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: { mode: "index", intersect: false },
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: "#fff",
+                      titleColor: "#0f172a",
+                      bodyColor: "#334155",
+                      borderColor: "#e2e8f0",
+                      borderWidth: 1,
+                      padding: 8,
+                      callbacks: {
+                        label: (ctx) => `${ctx.dataset.label}: €${Number(ctx.parsed.y).toFixed(2)}`,
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: { display: false },
+                      border: { display: false },
+                      ticks: { color: "#64748b", font: { size: 11 } },
+                    },
+                    y: { display: false, grid: { display: false } },
+                  },
+                }}
+                plugins={[verticalBarLabelsPlugin]}
+              />
+            </div>
+          </>
+        )}
       </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
